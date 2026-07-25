@@ -1,0 +1,15 @@
+# HandVox dependencies
+# Supported Python versions: 3.10 or 3.11 only.
+# Install with: python -m pip install -r requirements.txt
+# Do not use Python 3.12+ because this MediaPipe version is not supported there.
+opencv-python==4.8.1.78
+mediapipe==0.10.9
+scikit-learn==1.3.2
+pandas==2.1.4
+numpy==1.26.4
+Pillow==10.2.0
+matplotlib==3.8.2
+seaborn==0.13.2
+gTTS==2.5.1
+pygame==2.5.2
+pyttsx3==2.90

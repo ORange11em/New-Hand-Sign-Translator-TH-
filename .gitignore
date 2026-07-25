@@ -1,0 +1,4 @@
+.venv/
+__pycache__/
+*.py[cod]
+_tts_tmp.mp3

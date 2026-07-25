@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Flowchart 1920×1080</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1920px; height:1080px; overflow:hidden; background:#eef1f5; }
+</style>
+</head>
+<body>
+<svg width="1920" height="1080" viewBox="0 0 1920 1080"
+     xmlns="http://www.w3.org/2000/svg"
+     font-family="IBM Plex Sans Thai, sans-serif">
+
+  <defs>
+    <pattern id="gr" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M36 0L0 0 0 36" fill="none" stroke="#00000009" stroke-width="1"/>
+    </pattern>
+    <marker id="ab" markerWidth="10" markerHeight="7" refX="9"  refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#1565C0"/></marker>
+    <marker id="ag" markerWidth="10" markerHeight="7" refX="9"  refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#2E7D32"/></marker>
+    <marker id="ao" markerWidth="10" markerHeight="7" refX="9"  refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#E65100"/></marker>
+    <marker id="ar" markerWidth="10" markerHeight="7" refX="9"  refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#C62828"/></marker>
+    <marker id="ad" markerWidth="10" markerHeight="7" refX="9"  refY="3.5" orient="auto"><polygon points="0 0,10 3.5,0 7" fill="#37474F"/></marker>
+    <filter id="sh"><feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#00000022"/></filter>
+  </defs>
+
+  <!-- BG -->
+  <rect width="1920" height="1080" fill="#eef1f5"/>
+  <rect width="1920" height="1080" fill="url(#gr)"/>
+
+  <!-- TITLE -->
+  <text x="960" y="34" text-anchor="middle" font-size="20" font-weight="700" fill="#1a2a3a">
+    Flowchart — ระบบแปลภาษามือเรียลไทม์ด้วย Machine Learning (Hand Sign Translator TH)
+  </text>
+
+  <!-- ── PHASE BANNERS ── -->
+  <rect x="55"   y="50" width="1290" height="20" rx="3" fill="#BBDEFB"/>
+  <text x="700"  y="65" text-anchor="middle" font-size="12" fill="#1565C0" font-weight="700">PHASE 1 — เก็บข้อมูล (collect_data.py)</text>
+
+  <rect x="55"   y="565" width="555" height="20" rx="3" fill="#C8E6C9"/>
+  <text x="333"  y="580" text-anchor="middle" font-size="12" fill="#2E7D32" font-weight="700">PHASE 2 — เทรน Model (train_model.py)</text>
+
+  <rect x="625"  y="565" width="1240" height="20" rx="3" fill="#FFE0B2"/>
+  <text x="1245" y="580" text-anchor="middle" font-size="12" fill="#E65100" font-weight="700">PHASE 3 — Real-time Detection (run_detector.py)</text>
+
+  <!-- ══════════════════════════════════════════════════
+       ROW 1  y_center = 300   Phase 1
+  ══════════════════════════════════════════════════ -->
+
+  <!-- START -->
+  <ellipse cx="108" cy="300" rx="72" ry="28" fill="#263238" filter="url(#sh)"/>
+  <text x="108" y="295" text-anchor="middle" font-size="13" fill="white" font-weight="700">▶ START</text>
+  <text x="108" y="313" text-anchor="middle" font-size="10" fill="#90A4AE">เริ่มต้น</text>
+  <line x1="180" y1="300" x2="204" y2="300" stroke="#1565C0" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- [1] เปิดโปรแกรม  (parallelogram INPUT) -->
+  <polygon points="218,274 370,274 356,326 204,326" fill="#E3F2FD" stroke="#1565C0" stroke-width="2" filter="url(#sh)"/>
+  <text x="283" y="295" text-anchor="middle" font-size="12" fill="#1565C0" font-weight="700">เปิดโปรแกรม</text>
+  <text x="283" y="310" text-anchor="middle" font-size="11" fill="#1A237E">collect_data.py</text>
+  <text x="283" y="324" text-anchor="middle" font-size="10" fill="#3949AB">กด SPACE เริ่มเก็บ</text>
+  <line x1="370" y1="300" x2="394" y2="300" stroke="#1565C0" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- [2] เปิดกล้อง (rect) -->
+  <rect x="396" y="274" width="142" height="52" rx="4" fill="white" stroke="#1565C0" stroke-width="2" filter="url(#sh)"/>
+  <text x="467" y="296" text-anchor="middle" font-size="12" fill="#111" font-weight="700">เปิดกล้อง</text>
+  <text x="467" y="311" text-anchor="middle" font-size="11" fill="#555">Webcam</text>
+  <text x="467" y="326" text-anchor="middle" font-size="10" fill="#888">1280 × 720 px</text>
+  <line x1="538" y1="300" x2="562" y2="300" stroke="#1565C0" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- [3] MediaPipe (rect) -->
+  <rect x="564" y="274" width="142" height="52" rx="4" fill="white" stroke="#1565C0" stroke-width="2" filter="url(#sh)"/>
+  <text x="635" y="296" text-anchor="middle" font-size="12" fill="#111" font-weight="700">MediaPipe</text>
+  <text x="635" y="311" text-anchor="middle" font-size="11" fill="#555">ตรวจจับมือ</text>
+  <text x="635" y="326" text-anchor="middle" font-size="10" fill="#888">21 Landmark จุด</text>
+  <line x1="706" y1="300" x2="730" y2="300" stroke="#1565C0" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- [4] Diamond: เห็นมือไหม? -->
+  <polygon points="808,268 888,300 808,332 728,300" fill="#FFF9C4" stroke="#F57F17" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="808" y="295" text-anchor="middle" font-size="12" fill="#E65100" font-weight="700">เห็นมือ</text>
+  <text x="808" y="311" text-anchor="middle" font-size="12" fill="#E65100" font-weight="700">ไหม?</text>
+  <!-- NO → up → back to MediaPipe -->
+  <line x1="808" y1="268" x2="808" y2="196" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="808" y1="196" x2="635" y2="196" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="635" y1="196" x2="635" y2="272" stroke="#C62828" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="726" y="190" text-anchor="middle" font-size="11" fill="#C62828" font-weight="700">NO — ลองใหม่</text>
+  <!-- YES → right -->
+  <line x1="888" y1="300" x2="912" y2="300" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+  <text x="896" y="292" font-size="11" fill="#2E7D32" font-weight="700">YES</text>
+
+  <!-- [5] Normalize (rect) -->
+  <rect x="914" y="274" width="142" height="52" rx="4" fill="white" stroke="#1565C0" stroke-width="2" filter="url(#sh)"/>
+  <text x="985" y="296" text-anchor="middle" font-size="12" fill="#111" font-weight="700">Normalize</text>
+  <text x="985" y="311" text-anchor="middle" font-size="11" fill="#555">63 Features</text>
+  <text x="985" y="326" text-anchor="middle" font-size="10" fill="#888">ลบ Wrist / หาร Scale</text>
+  <line x1="1056" y1="300" x2="1080" y2="300" stroke="#1565C0" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- [6] บันทึก CSV (parallelogram OUTPUT) -->
+  <polygon points="1094,274 1254,274 1240,326 1080,326" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2" filter="url(#sh)"/>
+  <text x="1165" y="295" text-anchor="middle" font-size="12" fill="#2E7D32" font-weight="700">บันทึก CSV</text>
+  <text x="1165" y="310" text-anchor="middle" font-size="11" fill="#2E7D32">gesture_data.csv</text>
+  <text x="1165" y="325" text-anchor="middle" font-size="10" fill="#1B5E20">63 features + label / แถว</text>
+  <line x1="1254" y1="300" x2="1278" y2="300" stroke="#1565C0" stroke-width="2" marker-end="url(#ab)"/>
+
+  <!-- [7] Diamond: ครบ 300 ต่อท่า? -->
+  <polygon points="1362,268 1442,300 1362,332 1282,300" fill="#FFF9C4" stroke="#F57F17" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="1362" y="295" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">ครบ 300</text>
+  <text x="1362" y="311" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">ต่อท่า?</text>
+  <!-- NO → up → back to เปิดกล้อง -->
+  <line x1="1362" y1="268" x2="1362" y2="150" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="1362" y1="150" x2="467"  y2="150" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="467"  y1="150" x2="467"  y2="272" stroke="#C62828" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="920"   y="143" text-anchor="middle" font-size="11" fill="#C62828" font-weight="700">NO — วนซ้ำเก็บต่อ (ครบ 14 ท่า = 4,200 rows)</text>
+  <!-- YES → down then connector to row 2 -->
+  <line x1="1362" y1="332" x2="1362" y2="488" stroke="#2E7D32" stroke-width="2"/>
+  <line x1="1362" y1="488" x2="55"   y2="488" stroke="#2E7D32" stroke-width="2"/>
+  <line x1="55"   y1="488" x2="55"   y2="623" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+  <text x="1374" y="352" font-size="11" fill="#2E7D32" font-weight="700">YES</text>
+  <text x="710"  y="481" text-anchor="middle" font-size="11" fill="#2E7D32">ครบทุกท่า → ไป Phase 2</text>
+
+  <!-- ══════════════════════════════════════════════════
+       ROW 2  y_center = 680   Phase 2 + Phase 3
+  ══════════════════════════════════════════════════ -->
+
+  <!-- [8] โหลด CSV (parallelogram INPUT) -->
+  <polygon points="68,655 218,655 204,705 54,705" fill="#E3F2FD" stroke="#2E7D32" stroke-width="2" filter="url(#sh)"/>
+  <text x="133" y="675" text-anchor="middle" font-size="12" fill="#2E7D32" font-weight="700">โหลด CSV</text>
+  <text x="133" y="689" text-anchor="middle" font-size="11" fill="#2E7D32">4,200 rows</text>
+  <text x="133" y="703" text-anchor="middle" font-size="10" fill="#1B5E20">train_model.py</text>
+  <line x1="218" y1="680" x2="242" y2="680" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+
+  <!-- [9] แบ่ง Train/Test (rect) -->
+  <rect x="244" y="655" width="142" height="50" rx="4" fill="white" stroke="#2E7D32" stroke-width="2" filter="url(#sh)"/>
+  <text x="315" y="675" text-anchor="middle" font-size="12" fill="#111" font-weight="700">แบ่ง Train/Test</text>
+  <text x="315" y="690" text-anchor="middle" font-size="11" fill="#555">80% / 20%</text>
+  <text x="315" y="705" text-anchor="middle" font-size="10" fill="#888">Stratified Split</text>
+  <line x1="386" y1="680" x2="410" y2="680" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+
+  <!-- [10] เทรน SVM (rect) -->
+  <rect x="412" y="655" width="142" height="50" rx="4" fill="white" stroke="#2E7D32" stroke-width="2" filter="url(#sh)"/>
+  <text x="483" y="675" text-anchor="middle" font-size="12" fill="#111" font-weight="700">เทรน SVM</text>
+  <text x="483" y="690" text-anchor="middle" font-size="11" fill="#555">RBF | C=10</text>
+  <text x="483" y="705" text-anchor="middle" font-size="10" fill="#888">gamma=scale, prob=True</text>
+  <line x1="554" y1="680" x2="578" y2="680" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+
+  <!-- [11] บันทึก Output (parallelogram OUTPUT) -->
+  <polygon points="592,655 752,655 738,705 578,705" fill="#E8F5E9" stroke="#2E7D32" stroke-width="2" filter="url(#sh)"/>
+  <text x="663" y="673" text-anchor="middle" font-size="11" fill="#2E7D32" font-weight="700">บันทึก Output</text>
+  <text x="663" y="687" text-anchor="middle" font-size="10" fill="#2E7D32">gesture_model.pkl</text>
+  <text x="663" y="700" text-anchor="middle" font-size="10" fill="#1B5E20">labels.pkl + results.png</text>
+  <line x1="752" y1="680" x2="776" y2="680" stroke="#E65100" stroke-width="2" marker-end="url(#ao)"/>
+
+  <!-- [12] โหลด Model + เปิดกล้อง Phase 3 (rect) -->
+  <rect x="778" y="655" width="142" height="50" rx="4" fill="white" stroke="#E65100" stroke-width="2" filter="url(#sh)"/>
+  <text x="849" y="675" text-anchor="middle" font-size="12" fill="#111" font-weight="700">โหลด Model</text>
+  <text x="849" y="690" text-anchor="middle" font-size="11" fill="#555">+ เปิด Webcam</text>
+  <text x="849" y="705" text-anchor="middle" font-size="10" fill="#888">run_detector.py</text>
+  <line x1="920" y1="680" x2="944" y2="680" stroke="#E65100" stroke-width="2" marker-end="url(#ao)"/>
+
+  <!-- [13] Capture + MediaPipe + Normalize (rect) -->
+  <rect x="946" y="655" width="148" height="50" rx="4" fill="white" stroke="#E65100" stroke-width="2" filter="url(#sh)"/>
+  <text x="1020" y="672" text-anchor="middle" font-size="12" fill="#111" font-weight="700">Capture Frame</text>
+  <text x="1020" y="687" text-anchor="middle" font-size="11" fill="#555">MediaPipe → Normalize</text>
+  <text x="1020" y="702" text-anchor="middle" font-size="10" fill="#888">63 features</text>
+  <line x1="1094" y1="680" x2="1118" y2="680" stroke="#E65100" stroke-width="2" marker-end="url(#ao)"/>
+
+  <!-- [14] Diamond: เห็นมือ? Phase 3 -->
+  <polygon points="1196,650 1276,680 1196,710 1116,680" fill="#FFF9C4" stroke="#F57F17" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="1196" y="675" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">เห็นมือ</text>
+  <text x="1196" y="691" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">ไหม?</text>
+  <!-- NO → down → loop back to Capture -->
+  <line x1="1196" y1="710" x2="1196" y2="800" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="1196" y1="800" x2="1020" y2="800" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="1020" y1="800" x2="1020" y2="707" stroke="#C62828" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="1110" y="820" text-anchor="middle" font-size="11" fill="#C62828" font-weight="700">NO — รอ frame ถัดไป</text>
+  <!-- YES → right -->
+  <line x1="1276" y1="680" x2="1300" y2="680" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+  <text x="1284" y="672" font-size="11" fill="#2E7D32" font-weight="700">YES</text>
+
+  <!-- [15] SVM Predict + Smoothing (rect) -->
+  <rect x="1302" y="655" width="148" height="50" rx="4" fill="white" stroke="#E65100" stroke-width="2" filter="url(#sh)"/>
+  <text x="1376" y="673" text-anchor="middle" font-size="12" fill="#111" font-weight="700">SVM Predict</text>
+  <text x="1376" y="688" text-anchor="middle" font-size="11" fill="#555">Smoothing 3 frames</text>
+  <text x="1376" y="703" text-anchor="middle" font-size="10" fill="#888">Confidence ≥ 40%</text>
+  <line x1="1450" y1="680" x2="1474" y2="680" stroke="#E65100" stroke-width="2" marker-end="url(#ao)"/>
+
+  <!-- [16] แสดงผล + TTS (parallelogram OUTPUT) -->
+  <polygon points="1488,655 1658,655 1644,705 1474,705" fill="#FFF3E0" stroke="#E65100" stroke-width="2" filter="url(#sh)"/>
+  <text x="1566" y="672" text-anchor="middle" font-size="12" fill="#E65100" font-weight="700">แสดงผล + TTS</text>
+  <text x="1566" y="686" text-anchor="middle" font-size="11" fill="#BF360C">ชื่อท่า + Confidence %</text>
+  <text x="1566" y="700" text-anchor="middle" font-size="10" fill="#BF360C">เสียงพูด + Sentence Builder</text>
+  <line x1="1658" y1="680" x2="1682" y2="680" stroke="#E65100" stroke-width="2" marker-end="url(#ao)"/>
+
+  <!-- [17] Diamond: กด ESC? -->
+  <polygon points="1764,650 1848,680 1764,710 1680,680" fill="#FFF9C4" stroke="#F57F17" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="1764" y="675" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">กด ESC</text>
+  <text x="1764" y="691" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">ไหม?</text>
+
+  <!-- NO → down → loop back to Capture Frame -->
+  <line x1="1764" y1="710" x2="1764" y2="860" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="1764" y1="860" x2="1020" y2="860" stroke="#C62828" stroke-width="1.5"/>
+  <line x1="1020" y1="860" x2="1020" y2="707" stroke="#C62828" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="1394" y="878" text-anchor="middle" font-size="11" fill="#C62828" font-weight="700">NO — วนซ้ำ loop ทุก frame จนกด ESC</text>
+
+  <!-- YES → up → END -->
+  <line x1="1764" y1="650" x2="1764" y2="580" stroke="#37474F" stroke-width="2" marker-end="url(#ad)"/>
+  <text x="1776" y="622" font-size="11" fill="#37474F" font-weight="700">YES</text>
+
+  <!-- END oval (above ESC diamond) -->
+  <ellipse cx="1764" cy="548" rx="78" ry="28" fill="#263238" filter="url(#sh)"/>
+  <text x="1764" y="543" text-anchor="middle" font-size="14" fill="white" font-weight="700">■ END</text>
+  <text x="1764" y="561" text-anchor="middle" font-size="11" fill="#90A4AE">จบโปรแกรม</text>
+
+  <!-- ══════════════════════════════════════════════════
+       LEGEND   y = 920
+  ══════════════════════════════════════════════════ -->
+  <rect x="55" y="905" width="1810" height="148" rx="6" fill="white" stroke="#d0d7e0" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="75" y="928" font-size="13" fill="#333" font-weight="700">สัญลักษณ์ในผังงาน (Legend)</text>
+
+  <!-- START/END -->
+  <ellipse cx="145" cy="970" rx="68" ry="24" fill="#263238"/>
+  <text x="145" y="975" text-anchor="middle" font-size="12" fill="white" font-weight="700">Start / End</text>
+  <text x="145" y="1000" text-anchor="middle" font-size="11" fill="#666">จุดเริ่มต้น/สิ้นสุด</text>
+
+  <!-- PROCESS -->
+  <rect x="255" y="952" width="124" height="38" rx="4" fill="white" stroke="#555" stroke-width="1.5"/>
+  <text x="317" y="968" text-anchor="middle" font-size="12" fill="#111" font-weight="700">Process</text>
+  <text x="317" y="983" text-anchor="middle" font-size="11" fill="#555">กระบวนการทำงาน</text>
+  <text x="317" y="1000" text-anchor="middle" font-size="11" fill="#777">ขั้นตอน</text>
+
+  <!-- INPUT -->
+  <polygon points="408,952 540,952 526,990 394,990" fill="#E3F2FD" stroke="#1565C0" stroke-width="1.5"/>
+  <text x="466" y="967" text-anchor="middle" font-size="12" fill="#1565C0" font-weight="700">Input</text>
+  <text x="466" y="983" text-anchor="middle" font-size="11" fill="#1565C0">ข้อมูลนำเข้า</text>
+  <text x="466" y="1000" text-anchor="middle" font-size="11" fill="#777">Input</text>
+
+  <!-- OUTPUT -->
+  <polygon points="558,952 690,952 704,990 572,990" fill="#E8F5E9" stroke="#2E7D32" stroke-width="1.5"/>
+  <text x="630" y="967" text-anchor="middle" font-size="12" fill="#2E7D32" font-weight="700">Output</text>
+  <text x="630" y="983" text-anchor="middle" font-size="11" fill="#2E7D32">ผลลัพธ์</text>
+  <text x="630" y="1000" text-anchor="middle" font-size="11" fill="#777">Output</text>
+
+  <!-- DECISION -->
+  <polygon points="784,956 848,972 784,988 720,972" fill="#FFF9C4" stroke="#F57F17" stroke-width="1.5"/>
+  <text x="784" y="977" text-anchor="middle" font-size="11" fill="#E65100" font-weight="700">Decision</text>
+  <text x="784" y="1000" text-anchor="middle" font-size="11" fill="#777">เงื่อนไข YES/NO</text>
+
+  <!-- Arrow YES -->
+  <line x1="890" y1="972" x2="960" y2="972" stroke="#2E7D32" stroke-width="2" marker-end="url(#ag)"/>
+  <text x="922" y="966" text-anchor="middle" font-size="11" fill="#2E7D32" font-weight="700">YES</text>
+  <text x="922" y="1000" text-anchor="middle" font-size="11" fill="#777">เงื่อนไขจริง</text>
+
+  <!-- Arrow NO -->
+  <line x1="1010" y1="972" x2="1080" y2="972" stroke="#C62828" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="1042" y="966" text-anchor="middle" font-size="11" fill="#C62828" font-weight="700">NO</text>
+  <text x="1042" y="1000" text-anchor="middle" font-size="11" fill="#777">เงื่อนไขเท็จ</text>
+
+  <!-- Loop arrow -->
+  <path d="M1130 956 L1130 938 L1210 938 L1210 956" fill="none" stroke="#C62828" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#ar)"/>
+  <text x="1170" y="933" text-anchor="middle" font-size="10" fill="#C62828" font-weight="700">Loop back</text>
+  <text x="1170" y="1000" text-anchor="middle" font-size="11" fill="#777">วนกลับ</text>
+
+  <!-- Phase color dots -->
+  <rect x="1300" y="942" width="14" height="14" fill="#1565C0" rx="2"/>
+  <text x="1320" y="954" font-size="12" fill="#1565C0" font-weight="700">Phase 1 — เก็บข้อมูล (collect_data.py)</text>
+  <rect x="1300" y="966" width="14" height="14" fill="#2E7D32" rx="2"/>
+  <text x="1320" y="978" font-size="12" fill="#2E7D32" font-weight="700">Phase 2 — เทรน Model (train_model.py)</text>
+  <rect x="1300" y="990" width="14" height="14" fill="#E65100" rx="2"/>
+  <text x="1320" y="1002" font-size="12" fill="#E65100" font-weight="700">Phase 3 — Real-time Detection (run_detector.py)</text>
+
+  <!-- Stats box -->
+  <text x="1630" y="942" font-size="13" fill="#1a2a3a" font-weight="700">📊 สถิติระบบ</text>
+  <text x="1630" y="960" font-size="11" fill="#555">ท่ามือ : 14 ท่า  |  ตัวอย่าง : 4,200  |  Features : 63</text>
+  <text x="1630" y="978" font-size="11" fill="#555">Model : SVM RBF  |  CV Accuracy : ดูจากผลการเทรนล่าสุด</text>
+  <text x="1630" y="996" font-size="11" fill="#555">FPS : 18–22 บน CPU ทั่วไป (ไม่ต้องใช้ GPU)</text>
+  <text x="1630" y="1014" font-size="11" fill="#555">ฟีเจอร์ : TTS เสียงภาษาไทย + Sentence Builder</text>
+  <text x="1630" y="1032" font-size="11" fill="#555">ไฟล์ผลลัพธ์ : .pkl × 2  |  training_results.png</text>
+
+</svg>
+</body>
+</html>
