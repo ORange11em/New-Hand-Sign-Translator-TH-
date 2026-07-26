@@ -15,6 +15,7 @@ import cv2, mediapipe as mp, numpy as np
 import pickle, math, time, os, threading
 from collections import deque, Counter
 from PIL import Image, ImageDraw, ImageFont
+from body_features import FEATURE_COUNT, extract_features, upper_body_bbox
 from gesture_config import GESTURE_COLORS, GESTURE_NAMES
 
 # ── TTS — gTTS + pygame (ภาษาไทย ต้องการอินเทอร์เน็ต) ──────
@@ -98,18 +99,17 @@ if set(NAMES) != set(GESTURE_NAMES):
     exit()
 
 # ── MediaPipe ─────────────────────────────────────────────
-mp_h = mp.solutions.hands
-det  = mp_h.Hands(static_image_mode=False, max_num_hands=1,
-                  min_detection_confidence=0.85,
-                  min_tracking_confidence=0.85, model_complexity=1)
+mp_h = mp.solutions.holistic
+det = mp_h.Holistic(static_image_mode=False, model_complexity=1,
+                    smooth_landmarks=True,
+                    min_detection_confidence=0.7,
+                    min_tracking_confidence=0.7)
 
 def color(n): return GESTURE_COLORS.get(n, (0, 255, 160))
 
-def norm(lm):
-    wx,wy,wz = lm[0].x, lm[0].y, lm[0].z
-    sc = math.sqrt((lm[9].x-wx)**2+(lm[9].y-wy)**2+(lm[9].z-wz)**2)+1e-6
-    return np.array([v for p in lm
-                     for v in ((p.x-wx)/sc,(p.y-wy)/sc,(p.z-wz)/sc)]).reshape(1,-1)
+if getattr(model, "n_features_in_", FEATURE_COUNT) != FEATURE_COUNT:
+    print("This is a hand-only model. Collect upper-body samples and train a new model first.")
+    exit()
 
 def corner_box(img, x1,y1,x2,y2, c, t=3, L=30):
     for pts in [[(x1,y1+L),(x1,y1),(x1+L,y1)],
@@ -199,14 +199,11 @@ while True:
     cur_c = 0.0
     bbox  = None
 
-    if res.multi_hand_landmarks:
+    feats = extract_features(res)
+    if feats is not None:
         no_hand = None
-        lm = res.multi_hand_landmarks[0].landmark
-        xs = [p.x for p in lm]; ys = [p.y for p in lm]
-        x1 = int(max(0, min(xs)-.055)*W); y1 = int(max(0, min(ys)-.055)*H)
-        x2 = int(min(1, max(xs)+.055)*W); y2 = int(min(1, max(ys)+.055)*H)
-        bbox = (x1, y1, x2, y2)
-        proba = model.predict_proba(norm(lm))[0]
+        bbox = upper_body_bbox(res, W, H)
+        proba = model.predict_proba(np.array(feats).reshape(1, -1))[0]
         ti    = np.argmax(proba)
         tc    = proba[ti]
         if tc >= THRESH:

@@ -1,7 +1,11 @@
 
-import cv2, mediapipe as mp, csv, os, time, math
+import argparse
+import cv2, mediapipe as mp, csv, os, time, shutil
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+from datetime import datetime
+from pathlib import Path
+from body_features import extract_features, feature_columns, upper_body_bbox
 from gesture_config import GESTURES
 
 # ── ฟอนต์ไทย ──────────────────────────────────────────────
@@ -32,26 +36,39 @@ def putThaiC(img, text, cx, y, font, color=(255,255,255)):
     return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
 # ── MediaPipe ─────────────────────────────────────────────
-mp_h  = mp.solutions.hands
-detector = mp_h.Hands(static_image_mode=False, max_num_hands=1,
-                      min_detection_confidence=0.85,
-                      min_tracking_confidence=0.85, model_complexity=1)
+mp_h = mp.solutions.holistic
+detector = mp_h.Holistic(static_image_mode=False, model_complexity=1,
+                         smooth_landmarks=True,
+                         min_detection_confidence=0.7,
+                         min_tracking_confidence=0.7)
 
 SAMPLES = 300          # ตัวอย่างต่อท่า
 CSV     = "gesture_data.csv"
 
 # ── Normalize 1 มือ → 63 features ─────────────────────────
-def norm(lm):
-    wx,wy,wz = lm[0].x, lm[0].y, lm[0].z
-    sc = math.sqrt((lm[9].x-wx)**2+(lm[9].y-wy)**2+(lm[9].z-wz)**2)+1e-6
-    return [v for p in lm for v in ((p.x-wx)/sc,(p.y-wy)/sc,(p.z-wz)/sc)]
+def ensure_upper_body_dataset():
+    """Create the new schema and archive, rather than destroy, hand-only data."""
+    expected_header = feature_columns() + ["label"]
+    csv_path = Path(CSV)
+    if csv_path.exists():
+        with csv_path.open("r", newline="", encoding="utf-8") as file:
+            current_header = next(csv.reader(file), [])
+        if current_header == expected_header:
+            return False
+
+        backup_dir = Path("gesture_backups")
+        backup_dir.mkdir(exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"gesture_data_hand_only_{stamp}.csv"
+        shutil.move(csv_path, backup_path)
+        print(f"Legacy data archived: {backup_path}")
+
+    with csv_path.open("w", newline="", encoding="utf-8") as file:
+        csv.writer(file).writerow(expected_header)
+    return True
 
 # ── สร้าง CSV ──────────────────────────────────────────────
-if not os.path.exists(CSV):
-    with open(CSV,"w",newline="",encoding="utf-8") as f:
-        h = [f"lm{i}_{a}" for i in range(21) for a in "xyz"] + ["label"]
-        csv.writer(f).writerow(h)
-    print(f"สร้าง {CSV} แล้ว")
+dataset_reset = ensure_upper_body_dataset()
 
 def count_ex(g):
     if not os.path.exists(CSV): return 0
@@ -64,7 +81,20 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-g_list = list(GESTURES.keys())
+parser = argparse.ArgumentParser(description="Collect HandVox gesture samples")
+parser.add_argument("--gesture", help="Collect samples for this gesture only")
+args = parser.parse_args()
+
+if args.gesture and args.gesture not in GESTURES:
+    parser.error(f"ไม่พบท่า '{args.gesture}' ในการตั้งค่า")
+
+if dataset_reset:
+    print("Upper-body mode is new: collecting every gesture again.")
+    g_list = list(GESTURES.keys())
+elif args.gesture:
+    g_list = [args.gesture]
+else:
+    g_list = list(GESTURES.keys())
 idx    = 0
 
 while idx < len(g_list):
@@ -130,18 +160,17 @@ while idx < len(g_list):
         res = detector.process(rgb)
 
         saved = False
-        if res.multi_hand_landmarks:
-            lm    = res.multi_hand_landmarks[0].landmark
-            feats = norm(lm)
+        feats = extract_features(res)
+        if feats is not None:
             with open(CSV,"a",newline="",encoding="utf-8") as f:
                 csv.writer(f).writerow(feats+[g])
             cnt  += 1
             saved = True
 
-            xs=[p.x for p in lm]; ys=[p.y for p in lm]
-            x1=int(max(0,min(xs)-.05)*W); y1=int(max(0,min(ys)-.05)*H)
-            x2=int(min(1,max(xs)+.05)*W); y2=int(min(1,max(ys)+.05)*H)
-            cv2.rectangle(frm,(x1,y1),(x2,y2),(0,255,100),2)
+            bbox = upper_body_bbox(res, W, H)
+            if bbox:
+                x1, y1, x2, y2 = bbox
+                cv2.rectangle(frm,(x1,y1),(x2,y2),(0,255,100),2)
 
         pct  = int((cnt-ex)/remain*100) if remain>0 else 100
         bw   = W-40

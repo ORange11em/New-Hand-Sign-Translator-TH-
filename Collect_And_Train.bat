@@ -22,8 +22,9 @@ echo ==========================================
 echo   Step 1 of 2 - Collect gesture samples
 echo ==========================================
 echo.
-echo Add the new gesture first in gesture_config.py.
-echo Existing complete gestures are skipped automatically.
+echo Capture your upper body, both hands, and fingers in the camera view.
+echo On the first run, hand-only samples are archived and every gesture is collected again.
+echo Existing complete upper-body gestures are skipped automatically.
 echo.
 ".venv\Scripts\python.exe" collect_data.py
 set "COLLECT_EXIT=%ERRORLEVEL%"

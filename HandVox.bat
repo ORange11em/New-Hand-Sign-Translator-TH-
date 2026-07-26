@@ -27,6 +27,8 @@ echo  [1] Start sign detection
 echo  [2] Train model with current data
 echo  [3] Collect gesture samples
 echo  [4] Install or repair packages
+echo  [5] Add a new gesture (collect and train)
+echo  [6] Remove a custom gesture (backup and train)
 echo  [0] Exit
 echo.
 set /p "choice=Select an option: "
@@ -35,6 +37,8 @@ if "%choice%"=="1" goto :detect
 if "%choice%"=="2" goto :train
 if "%choice%"=="3" goto :collect
 if "%choice%"=="4" goto :setup
+if "%choice%"=="5" goto :add_gesture
+if "%choice%"=="6" goto :remove_gesture
 if "%choice%"=="0" exit /b 0
 
 echo Invalid option.
@@ -58,4 +62,12 @@ goto :menu
 
 :setup
 call setup.bat
+goto :menu
+
+:add_gesture
+call Add_New_Gesture.bat
+goto :menu
+
+:remove_gesture
+call Remove_Gesture.bat
 goto :menu

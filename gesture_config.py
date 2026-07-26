@@ -2,40 +2,44 @@
 
 แก้ไขชื่อ คำอธิบาย และสีของท่ามือจากไฟล์นี้เพียงจุดเดียว
 แล้วเก็บข้อมูลและเทรนโมเดลใหม่ทุกครั้งเมื่อเปลี่ยนรายการท่า.
+
+ท่าที่เพิ่มผ่าน Add_New_Gesture.bat จะถูกเก็บใน custom_gestures.json
+โดยอัตโนมัติ จึงไม่จำเป็นต้องแก้ไขไฟล์นี้เอง.
 """
 
-GESTURES = {
-    "ชอบ": "ชูนิ้วโป้งกับนิ้วชี้ เข้าหาตัวเอง",
-    "เสียใจ": "กำมือ",
-    "ร้องไห้": "นิ้วชี้กับนิ้วกลางกลางออก",
-    "ง่าย": "นิ้วก้อย",
-    "หิว": "นิ้วโป้งกับนิ้วชี้จีบกัน",
-    "หล่อ": "นิ้วชี้กับนิ้วกลางชิดกัน",
-    "ขอบคุณ": "แบมือทั้งห้านิ้วออกกลางนิ้วทั้งหมด",
-    "ได้": "ชูนิ้วโป้งเยี่ยม",
-    "ระวัง": "นิ้วชี้กับนิ้วกลางไขว้กัน",
-    "อันตราย": "ชูนิ้วชี้แล้วงอ",
-    "ไม่สบาย": "ชูสี่นิ้ว หุบนิ้วโป้งเข้า",
-    "เข้าใจ": "ชูนิ้วชี้นิ้วเดียว",
-    "ไม่เข้าใจ": "นิ้วทั้งห้าแบออก",
-    "วิ่ง": "ท่าวิ่ง",
-}
+import json
+from pathlib import Path
 
-GESTURE_COLORS = {
-    "ชอบ": (0, 255, 80),
-    "เสียใจ": (0, 180, 255),
-    "ร้องไห้": (255, 140, 0),
-    "ง่าย": (0, 255, 0),
-    "หิว": (255, 0, 0),
-    "หล่อ": (255, 0, 120),
-    "ขอบคุณ": (0, 220, 220),
-    "ได้": (220, 0, 255),
-    "ระวัง": (183, 23, 205),
-    "อันตราย": (101, 14, 255),
-    "ไม่สบาย": (129, 13, 235),
-    "เข้าใจ": (155, 12, 245),
-    "ไม่เข้าใจ": (165, 11, 255),
-    "วิ่ง": (255, 180, 0),
-}
+GESTURES = {}
+GESTURE_COLORS = {}
 
+
+def _load_custom_gestures():
+    """Load gestures added through the guided add-gesture workflow."""
+    custom_file = Path(__file__).with_name("custom_gestures.json")
+    if not custom_file.exists():
+        return
+
+    try:
+        entries = json.loads(custom_file.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            raise ValueError("รายการท่าต้องเป็น list")
+
+        for entry in entries:
+            name = entry.get("name", "").strip()
+            description = entry.get("description", "").strip()
+            color = entry.get("color", (0, 220, 255))
+            if (not name or not description or name in GESTURES or
+                    not isinstance(color, list) or len(color) != 3 or
+                    not all(isinstance(value, int) and 0 <= value <= 255
+                            for value in color)):
+                print(f"ข้ามข้อมูลท่าที่ไม่ถูกต้องใน {custom_file.name}: {entry}")
+                continue
+            GESTURES[name] = description
+            GESTURE_COLORS[name] = tuple(color)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"อ่าน {custom_file.name} ไม่ได้: {error}")
+
+
+_load_custom_gestures()
 GESTURE_NAMES = list(GESTURES)

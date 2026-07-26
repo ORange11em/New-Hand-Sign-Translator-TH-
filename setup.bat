@@ -13,6 +13,11 @@ set "PYTHON_CMD="
 py -3.11 --version >nul 2>&1 && set "PYTHON_CMD=py -3.11"
 if not defined PYTHON_CMD py -3.10 --version >nul 2>&1 && set "PYTHON_CMD=py -3.10"
 
+rem Some Windows installations do not register a newly installed Python with "py" immediately.
+rem Use the standard per-user installation location as a fallback.
+if not defined PYTHON_CMD if exist "%LocalAppData%\Programs\Python\Python311\python.exe" set "PYTHON_CMD="%LocalAppData%\Programs\Python\Python311\python.exe""
+if not defined PYTHON_CMD if exist "%LocalAppData%\Programs\Python\Python310\python.exe" set "PYTHON_CMD="%LocalAppData%\Programs\Python\Python310\python.exe""
+
 if not defined PYTHON_CMD (
     echo [Python 3.10 or 3.11 was not found]
     echo Install it from https://www.python.org/downloads/
