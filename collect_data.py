@@ -26,6 +26,7 @@ def load_font(size):
 FONT_LARGE = load_font(48)
 FONT_MEDIUM = load_font(30)
 FONT_SMALL = load_font(22)
+WINDOW_TITLE = "HandVox - Clip Collector"
 
 
 def thai_text(image, text, position, font, color=(255, 255, 255)):
@@ -45,6 +46,17 @@ def centered_text(image, text, y, font, color=(255, 255, 255)):
 
 
 def wait_for_start(camera, name, description, remaining):
+    record_requested = {"value": False, "rect": None}
+
+    def on_mouse(event, x, y, flags, parameter):
+        if event != cv2.EVENT_LBUTTONDOWN or record_requested["rect"] is None:
+            return
+        x1, y1, x2, y2 = record_requested["rect"]
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            record_requested["value"] = True
+
+    cv2.namedWindow(WINDOW_TITLE)
+    cv2.setMouseCallback(WINDOW_TITLE, on_mouse)
     while True:
         ok, frame = camera.read()
         if not ok:
@@ -57,13 +69,47 @@ def wait_for_start(camera, name, description, remaining):
         frame = centered_text(frame, description, 270, FONT_SMALL, (220, 220, 120))
         frame = centered_text(frame, f"เหลือ {remaining} คลิป", 315, FONT_MEDIUM, (180, 180, 180))
         frame = centered_text(frame, "จัดให้เห็นศีรษะถึงสะโพกและมือ", 365, FONT_SMALL, (180, 180, 180))
-        frame = centered_text(frame, "กด SPACE เริ่มบันทึกคลิป 1 วินาที | Q ออก", 410, FONT_SMALL, (0, 210, 255))
-        cv2.imshow("HandVox - Clip Collector", frame)
+        height, width = frame.shape[:2]
+        button_width, button_height = 330, 58
+        button_x = (width - button_width) // 2
+        button_y = min(height - button_height - 24, 430)
+        record_requested["rect"] = (
+            button_x, button_y, button_x + button_width, button_y + button_height
+        )
+        cv2.rectangle(frame, record_requested["rect"][:2], record_requested["rect"][2:],
+                      (0, 190, 255), -1)
+        cv2.rectangle(frame, record_requested["rect"][:2], record_requested["rect"][2:],
+                      (255, 255, 255), 2)
+        frame = centered_text(frame, "บันทึกคลิป (นับ 3 วิ)", button_y + 10, FONT_SMALL, (0, 0, 0))
+        frame = centered_text(frame, "หรือกด SPACE | Q ออก", button_y + button_height + 10,
+                              FONT_SMALL, (0, 210, 255))
+        cv2.imshow(WINDOW_TITLE, frame)
         key = cv2.waitKey(1) & 0xFF
-        if key == ord(" "):
+        if key == ord(" ") or record_requested["value"]:
             return True
         if key == ord("q"):
             return False
+
+
+def countdown(camera, name, clip_number):
+    """Show a three-second break before each automatically recorded clip."""
+    for seconds in (3, 2, 1):
+        started = time.time()
+        while time.time() - started < 1:
+            ok, frame = camera.read()
+            if not ok:
+                return False
+            frame = cv2.flip(frame, 1)
+            frame = centered_text(frame, name, 160, FONT_MEDIUM, (0, 255, 160))
+            frame = centered_text(frame, f"คลิปที่ {clip_number}/{CLIPS_PER_GESTURE}", 215,
+                                  FONT_SMALL, (230, 230, 230))
+            frame = centered_text(frame, str(seconds), 265, FONT_LARGE, (0, 220, 255))
+            frame = centered_text(frame, "เตรียมพร้อม... กด Q เพื่อหยุด", 340,
+                                  FONT_SMALL, (230, 230, 230))
+            cv2.imshow(WINDOW_TITLE, frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                return False
+    return True
 
 
 def collect_clip(camera, detector):
@@ -86,7 +132,7 @@ def collect_clip(camera, detector):
         if features is None:
             frame = thai_text(frame, "รอให้เห็นช่วงบนและมืออย่างน้อยหนึ่งข้าง", (20, 65),
                               FONT_SMALL, (0, 110, 255))
-        cv2.imshow("HandVox - Clip Collector", frame)
+        cv2.imshow(WINDOW_TITLE, frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             return None
     return np.asarray(frames, dtype=np.float32)
@@ -120,20 +166,15 @@ def main():
 
     try:
         for name in gestures:
+            remaining = CLIPS_PER_GESTURE - count_clips(name)
+            if remaining <= 0:
+                continue
+            if not wait_for_start(camera, name, GESTURES[name], remaining):
+                return 1
             while count_clips(name) < CLIPS_PER_GESTURE:
-                remaining = CLIPS_PER_GESTURE - count_clips(name)
-                if not wait_for_start(camera, name, GESTURES[name], remaining):
+                clip_number = count_clips(name) + 1
+                if not countdown(camera, name, clip_number):
                     return 1
-                for seconds in (3, 2, 1):
-                    started = time.time()
-                    while time.time() - started < 1:
-                        ok, frame = camera.read()
-                        if not ok:
-                            return 1
-                        frame = cv2.flip(frame, 1)
-                        frame = centered_text(frame, str(seconds), 250, FONT_LARGE, (0, 220, 255))
-                        cv2.imshow("HandVox - Clip Collector", frame)
-                        cv2.waitKey(1)
                 clip = collect_clip(camera, detector)
                 if clip is None:
                     return 1
