@@ -1,0 +1,76 @@
+"""Storage helpers for HandVox gesture clips."""
+
+import shutil
+from datetime import datetime
+from pathlib import Path
+
+import numpy as np
+
+from body_features import FEATURE_COUNT
+
+
+ROOT = Path(__file__).resolve().parent
+DATA_FILE = ROOT / "gesture_sequences.npz"
+SEQUENCE_LENGTH = 30
+CLIPS_PER_GESTURE = 30
+LEGACY_FILES = (
+    "gesture_data.csv",
+    "gesture_model.pkl",
+    "gesture_labels.pkl",
+    "training_results.png",
+)
+
+
+def empty_dataset():
+    return (np.empty((0, SEQUENCE_LENGTH, FEATURE_COUNT), dtype=np.float32),
+            np.empty((0,), dtype=str))
+
+
+def load_dataset():
+    if not DATA_FILE.exists():
+        return empty_dataset()
+    with np.load(DATA_FILE, allow_pickle=False) as data:
+        return data["clips"].astype(np.float32), data["labels"].astype(str)
+
+
+def save_dataset(clips, labels):
+    temporary = DATA_FILE.with_suffix(".tmp.npz")
+    np.savez_compressed(temporary, clips=clips.astype(np.float32), labels=labels.astype(str))
+    temporary.replace(DATA_FILE)
+
+
+def count_clips(name):
+    _, labels = load_dataset()
+    return int(np.sum(labels == name))
+
+
+def append_clip(name, clip):
+    clips, labels = load_dataset()
+    clip = np.asarray(clip, dtype=np.float32)
+    if clip.shape != (SEQUENCE_LENGTH, FEATURE_COUNT):
+        raise ValueError(f"Expected {SEQUENCE_LENGTH}x{FEATURE_COUNT} clip, got {clip.shape}")
+    clips = np.concatenate((clips, clip.reshape(1, SEQUENCE_LENGTH, FEATURE_COUNT)))
+    labels = np.concatenate((labels, np.array([name])))
+    save_dataset(clips, labels)
+
+
+def remove_gesture(name):
+    clips, labels = load_dataset()
+    keep = labels != name
+    removed = int(np.sum(~keep))
+    save_dataset(clips[keep], labels[keep])
+    return removed
+
+
+def archive_legacy_data():
+    """Move incompatible frame-by-frame data aside once, without deleting it."""
+    candidates = [ROOT / filename for filename in LEGACY_FILES if (ROOT / filename).exists()]
+    if not candidates:
+        return None
+    backup_dir = ROOT / "gesture_backups" / (
+        "frame_data_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
+    backup_dir.mkdir(parents=True, exist_ok=False)
+    for source in candidates:
+        shutil.move(source, backup_dir / source.name)
+    return backup_dir

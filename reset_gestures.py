@@ -1,17 +1,17 @@
 """Archive all active gestures and start an empty upper-body dataset."""
 
 import argparse
-import csv
 import shutil
 from datetime import datetime
 from pathlib import Path
 
-from body_features import feature_columns
+from sequence_dataset import DATA_FILE, empty_dataset, save_dataset
 
 
 ROOT = Path(__file__).resolve().parent
 ACTIVE_FILES = (
     "gesture_data.csv",
+    "gesture_sequences.npz",
     "gesture_model.pkl",
     "gesture_labels.pkl",
     "training_results.png",
@@ -36,8 +36,8 @@ def main():
         if source.exists():
             shutil.move(source, backup_dir / filename)
 
-    with (ROOT / "gesture_data.csv").open("w", newline="", encoding="utf-8") as file:
-        csv.writer(file).writerow(feature_columns() + ["label"])
+    clips, labels = empty_dataset()
+    save_dataset(clips, labels)
     (ROOT / "custom_gestures.json").write_text("[]\n", encoding="utf-8")
 
     print("All active gestures have been reset.")

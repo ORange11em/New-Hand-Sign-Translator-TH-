@@ -17,6 +17,7 @@ from collections import deque, Counter
 from PIL import Image, ImageDraw, ImageFont
 from body_features import FEATURE_COUNT, extract_features, upper_body_bbox
 from gesture_config import GESTURE_COLORS, GESTURE_NAMES
+from sequence_dataset import SEQUENCE_LENGTH
 
 # ── TTS — gTTS + pygame (ภาษาไทย ต้องการอินเทอร์เน็ต) ──────
 TTS_ENABLED = False
@@ -107,8 +108,8 @@ det = mp_h.Holistic(static_image_mode=False, model_complexity=1,
 
 def color(n): return GESTURE_COLORS.get(n, (0, 255, 160))
 
-if getattr(model, "n_features_in_", FEATURE_COUNT) != FEATURE_COUNT:
-    print("This is a hand-only model. Collect upper-body samples and train a new model first.")
+if getattr(model, "n_features_in_", FEATURE_COUNT * SEQUENCE_LENGTH) != FEATURE_COUNT * SEQUENCE_LENGTH:
+    print("This is not a motion-clip model. Collect clips and train a new model first.")
     exit()
 
 def corner_box(img, x1,y1,x2,y2, c, t=3, L=30):
@@ -120,6 +121,7 @@ def corner_box(img, x1,y1,x2,y2, c, t=3, L=30):
 
 # ── State ─────────────────────────────────────────────────
 smooth    = deque(maxlen=3)
+motion_frames = deque(maxlen=SEQUENCE_LENGTH)
 confirmed = ""
 conf_val  = 0.0
 no_hand   = None
@@ -203,17 +205,21 @@ while True:
     if feats is not None:
         no_hand = None
         bbox = upper_body_bbox(res, W, H)
-        proba = model.predict_proba(np.array(feats).reshape(1, -1))[0]
-        ti    = np.argmax(proba)
-        tc    = proba[ti]
-        if tc >= THRESH:
-            cur   = le.classes_[ti]
-            cur_c = float(tc)
+        motion_frames.append(feats)
+        if len(motion_frames) == SEQUENCE_LENGTH:
+            sequence = np.array(motion_frames, dtype=np.float32).reshape(1, -1)
+            proba = model.predict_proba(sequence)[0]
+            ti    = np.argmax(proba)
+            tc    = proba[ti]
+            if tc >= THRESH:
+                cur   = le.classes_[ti]
+                cur_c = float(tc)
     else:
         if no_hand is None:
             no_hand = now
         elif now - no_hand > RESET:
             smooth.clear()
+            motion_frames.clear()
             confirmed = ""; conf_val = 0.0
             # รีเซ็ต hold timer เมื่อเอามือออก
             # last_spoken รีเซ็ตด้วย → ยกมือขึ้นใหม่พูดได้ทันที

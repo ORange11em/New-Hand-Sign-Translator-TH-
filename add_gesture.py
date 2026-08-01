@@ -1,18 +1,17 @@
 """Guided one-pass workflow for adding a HandVox gesture."""
 
-import csv
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 from gesture_config import GESTURES
+from sequence_dataset import CLIPS_PER_GESTURE, count_clips, load_dataset
 
 
 ROOT = Path(__file__).resolve().parent
-CSV_FILE = ROOT / "gesture_data.csv"
 CUSTOM_FILE = ROOT / "custom_gestures.json"
-SAMPLES = 300
+SAMPLES = CLIPS_PER_GESTURE
 COLORS = [
     [0, 220, 255], [255, 120, 0], [0, 220, 100], [255, 0, 160],
     [180, 80, 255], [0, 180, 255], [120, 220, 0], [255, 200, 0],
@@ -20,10 +19,7 @@ COLORS = [
 
 
 def sample_count(name):
-    if not CSV_FILE.exists():
-        return 0
-    with CSV_FILE.open("r", newline="", encoding="utf-8") as file:
-        return sum(1 for row in csv.reader(file) if row and row[-1] == name)
+    return count_clips(name)
 
 
 def read_custom_gestures():
@@ -49,7 +45,7 @@ def ask_for_gesture():
     print("=" * 54)
     print("       HandVox - เพิ่มท่าใหม่แบบครั้งเดียว")
     print("=" * 54)
-    print(f"เก็บตัวอย่าง {SAMPLES} ตัวอย่าง แล้วฝึกโมเดลให้ทันที\n")
+    print(f"เก็บ {SAMPLES} คลิปสั้น (คลิปละ 30 เฟรม) แล้วฝึกโมเดลให้ทันที\n")
 
     while True:
         name = input("ชื่อท่าใหม่: ").strip()
@@ -60,9 +56,9 @@ def ask_for_gesture():
     existing_count = sample_count(name)
     if name in GESTURES:
         if existing_count >= SAMPLES:
-            print(f"\nท่า '{name}' มีตัวอย่างครบแล้ว ({existing_count})")
+            print(f"\nท่า '{name}' มีคลิปครบแล้ว ({existing_count})")
             return name, False
-        print(f"\nพบท่า '{name}' อยู่แล้ว จะเก็บต่อจาก {existing_count}/{SAMPLES} ตัวอย่าง")
+        print(f"\nพบท่า '{name}' อยู่แล้ว จะเก็บต่อจาก {existing_count}/{SAMPLES} คลิป")
         return name, True
 
     while True:
@@ -93,12 +89,12 @@ def main():
 
     collected = sample_count(name)
     if collected < SAMPLES:
-        print(f"\nเก็บได้ {collected}/{SAMPLES} ตัวอย่าง ยังไม่ฝึกโมเดล")
+        print(f"\nเก็บได้ {collected}/{SAMPLES} คลิป ยังไม่ฝึกโมเดล")
         print("เปิด Add_New_Gesture.bat อีกครั้ง แล้วใส่ชื่อเดิมเพื่อเก็บต่อ")
         return 1
 
-    with CSV_FILE.open("r", newline="", encoding="utf-8") as file:
-        gesture_count = len({row[-1] for row in list(csv.reader(file))[1:] if row})
+    _, labels = load_dataset()
+    gesture_count = len(set(labels))
     if gesture_count < 2:
         print("\nบันทึกท่าแรกแล้ว เพิ่มอีกอย่างน้อย 1 ท่าก่อนฝึกโมเดล")
         return 0
