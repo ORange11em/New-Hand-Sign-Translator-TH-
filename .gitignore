@@ -2,3 +2,11 @@
 __pycache__/
 *.py[cod]
 _tts_tmp.mp3
+settings.json
+conversation_history.json
+handvox.log
+dataset_v2/metadata.jsonl
+dataset_v2/clips/
+dataset_v2/previews/
+experiments/*/model.pkl
+experiments/*/labels.pkl

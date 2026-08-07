@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HandVox Dataset V2 Clip Metadata",
+  "type": "object",
+  "required": ["clip_id", "gesture_name", "signer_id", "session_id", "recorded_at", "camera_index", "clip_number", "quality", "sequence_file", "duration_frames", "feature_count", "dataset_version"],
+  "properties": {
+    "clip_id": {"type": "string", "minLength": 1},
+    "gesture_name": {"type": "string", "minLength": 1},
+    "signer_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "camera_index": {"type": "integer", "minimum": 0},
+    "lighting": {"enum": ["unknown", "bright", "normal", "dim", "backlit"]},
+    "clip_number": {"type": "integer", "minimum": 1},
+    "quality": {"enum": ["pending", "accepted", "rejected"]},
+    "reference_url": {"type": "string"},
+    "sequence_file": {"type": "string"},
+    "preview_file": {"type": "string"},
+    "duration_frames": {"type": "integer", "minimum": 1},
+    "feature_count": {"type": "integer", "minimum": 0},
+    "dataset_version": {"const": 2},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

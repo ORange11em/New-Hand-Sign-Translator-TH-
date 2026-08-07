@@ -1,0 +1,551 @@
+{
+  "ready": false,
+  "generated_at": "2026-08-07T06:46:13+07:00",
+  "accepted_clips": 0,
+  "expected_target_clips": 340,
+  "items": [
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า ใช่ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า ไม่ใช่ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า ช่วยด้วย ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า ห้องน้ำ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า น้ำ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า กิน ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า เจ็บ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า หมอ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า เข้าใจ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า ไม่เข้าใจ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า ต้องการ ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "reference_missing",
+      "message": "คำว่า หยุด ยังไม่มีลิงก์อ้างอิงภาษามือไทย"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "สวัสดี / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "สวัสดี / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ขอโทษ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ขอโทษ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ไม่เป็นไร / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ไม่เป็นไร / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ขอบคุณ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ขอบคุณ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ใช่ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ใช่ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ไม่ใช่ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ไม่ใช่ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ช่วยด้วย / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ช่วยด้วย / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ห้องน้ำ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ห้องน้ำ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "น้ำ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "น้ำ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "กิน / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "กิน / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "เจ็บ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "เจ็บ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "หมอ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "หมอ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "เข้าใจ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "เข้าใจ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ไม่เข้าใจ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ไม่เข้าใจ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ต้องการ / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "ต้องการ / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "หยุด / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "หยุด / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "neutral / person_01: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "accepted_below_minimum",
+      "message": "neutral / person_02: accepted 0/8 คลิปขั้นต่ำ"
+    },
+    {
+      "status": "error",
+      "code": "dataset_empty",
+      "message": "Dataset V2 ยังไม่มีข้อมูล — ยังเทรนไม่ได้"
+    }
+  ],
+  "inventory": [
+    {
+      "gesture_name": "สวัสดี",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "สวัสดี",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ขอโทษ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ขอโทษ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ไม่เป็นไร",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ไม่เป็นไร",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ขอบคุณ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ขอบคุณ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ใช่",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ใช่",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ไม่ใช่",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ไม่ใช่",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ช่วยด้วย",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ช่วยด้วย",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ห้องน้ำ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ห้องน้ำ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "น้ำ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "น้ำ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "กิน",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "กิน",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "เจ็บ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "เจ็บ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "หมอ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "หมอ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "เข้าใจ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "เข้าใจ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ไม่เข้าใจ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ไม่เข้าใจ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ต้องการ",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "ต้องการ",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "หยุด",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "หยุด",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "neutral",
+      "signer_id": "person_01",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    },
+    {
+      "gesture_name": "neutral",
+      "signer_id": "person_02",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 0,
+      "total": 0,
+      "sessions": 0
+    }
+  ]
+}

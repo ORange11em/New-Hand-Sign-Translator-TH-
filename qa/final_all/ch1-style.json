@@ -1,0 +1,165 @@
+{
+  "input": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\\u0e1c\u0e25\u0e25\u0e31\u0e1e\u0e18\u0e4c\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23\\\u0e1a\u0e17\u0e17\u0e35\u0e48 1_\u0e09\u0e1a\u0e31\u0e1a\u0e1b\u0e23\u0e31\u0e1a\u0e1b\u0e23\u0e38\u0e07_HandVox.docx",
+  "fonts_by_char_count": {
+    "Angsana New": 6582
+  },
+  "direct_run_formatting_runs": 149,
+  "direct_paragraph_formatting_paragraphs": 111,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 1,
+      "text": "\u0e1a\u0e17\u0e17\u0e35\u0e48 1",
+      "style": "Normal"
+    },
+    {
+      "para_index": 2,
+      "text": "\u0e1a\u0e17\u0e19\u0e33",
+      "style": "Normal"
+    },
+    {
+      "para_index": 30,
+      "text": "5) \u0e40\u0e1e\u0e34\u0e48\u0e21\u0e17\u0e48\u0e32 \u0e25\u0e1a\u0e17\u0e48\u0e32 \u0e2a\u0e33\u0e23\u0e2d\u0e07\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25 \u0e41\u0e25\u0e30\u0e1d\u0e36\u0e01\u0e42\u0e21\u0e40\u0e14\u0e25\u0e43\u0e2b\u0e21\u0e48\u0e1c\u0e48\u0e32\u0e19\u0e40\u0e21\u0e19\u0e39\u0e2b\u0e23\u0e37\u0e2d\u0e44\u0e1f\u0e25\u0e4c\u0e04\u0e33\u0e2a\u0e31\u0e48\u0e07\u0e02\u0e2d\u0e07\u0e23\u0e30\u0e1a\u0e1a",
+      "style": "Normal"
+    },
+    {
+      "para_index": 34,
+      "text": "3) \u0e2b\u0e19\u0e36\u0e48\u0e07\u0e04\u0e25\u0e34\u0e1b\u0e16\u0e39\u0e01\u0e17\u0e33\u0e43\u0e2b\u0e49\u0e40\u0e1b\u0e47\u0e19\u0e40\u0e27\u0e01\u0e40\u0e15\u0e2d\u0e23\u0e4c 5,130 \u0e04\u0e48\u0e32 (30 \u00d7 171) \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e1d\u0e36\u0e01 SVM \u0e41\u0e1a\u0e1a RBF",
+      "style": "Normal"
+    },
+    {
+      "para_index": 37,
+      "text": "1) \u0e17\u0e33\u0e07\u0e32\u0e19\u0e1a\u0e19\u0e23\u0e30\u0e1a\u0e1a\u0e1b\u0e0f\u0e34\u0e1a\u0e31\u0e15\u0e34\u0e01\u0e32\u0e23 Windows 10 \u0e2b\u0e23\u0e37\u0e2d Windows 11",
+      "style": "Normal"
+    },
+    {
+      "para_index": 38,
+      "text": "2) \u0e43\u0e0a\u0e49 Python 3.10 \u0e2b\u0e23\u0e37\u0e2d 3.11 \u0e41\u0e25\u0e30\u0e44\u0e25\u0e1a\u0e23\u0e32\u0e23\u0e35\u0e15\u0e32\u0e21\u0e44\u0e1f\u0e25\u0e4c requirements.txt \u0e02\u0e2d\u0e07\u0e42\u0e04\u0e23\u0e07\u0e07\u0e32\u0e19",
+      "style": "Normal"
+    },
+    {
+      "para_index": 45,
+      "text": "1.4.1 \u0e28\u0e36\u0e01\u0e29\u0e32\u0e1b\u0e31\u0e0d\u0e2b\u0e32 \u0e2b\u0e25\u0e31\u0e01\u0e01\u0e32\u0e23\u0e23\u0e39\u0e49\u0e08\u0e33\u0e17\u0e48\u0e32\u0e17\u0e32\u0e07 \u0e41\u0e25\u0e30\u0e02\u0e49\u0e2d\u0e08\u0e33\u0e01\u0e31\u0e14\u0e02\u0e2d\u0e07\u0e01\u0e32\u0e23\u0e01\u0e25\u0e48\u0e32\u0e27\u0e2d\u0e49\u0e32\u0e07\u0e27\u0e48\u0e32\u0e40\u0e1b\u0e47\u0e19\u0e01\u0e32\u0e23\u0e41\u0e1b\u0e25\u0e20\u0e32\u0e29\u0e32",
+      "style": "Normal"
+    },
+    {
+      "para_index": 48,
+      "text": "1.4.4 \u0e40\u0e01\u0e47\u0e1a\u0e04\u0e25\u0e34\u0e1b\u0e17\u0e35\u0e48\u0e21\u0e35\u0e1b\u0e49\u0e32\u0e22\u0e01\u0e33\u0e01\u0e31\u0e1a \u0e41\u0e1a\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e1a\u0e1a stratified \u0e41\u0e25\u0e30\u0e1d\u0e36\u0e01 SVM \u0e41\u0e1a\u0e1a RBF",
+      "style": "Normal"
+    },
+    {
+      "para_index": 50,
+      "text": "1.4.6 \u0e08\u0e31\u0e14\u0e17\u0e33\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23 \u0e2a\u0e23\u0e38\u0e1b\u0e1c\u0e25 \u0e41\u0e25\u0e30\u0e40\u0e2a\u0e19\u0e2d\u0e41\u0e19\u0e27\u0e17\u0e32\u0e07\u0e1e\u0e31\u0e12\u0e19\u0e32\u0e15\u0e48\u0e2d",
+      "style": "Normal"
+    },
+    {
+      "para_index": 68,
+      "text": "1.8.8 Text-to-Speech (TTS): \u0e01\u0e32\u0e23\u0e41\u0e1b\u0e25\u0e07\u0e02\u0e49\u0e2d\u0e04\u0e27\u0e32\u0e21\u0e1c\u0e25\u0e25\u0e31\u0e1e\u0e18\u0e4c\u0e40\u0e1b\u0e47\u0e19\u0e40\u0e2a\u0e35\u0e22\u0e07\u0e1e\u0e39\u0e14\u0e20\u0e32\u0e29\u0e32\u0e44\u0e17\u0e22",
+      "style": "Normal"
+    },
+    {
+      "para_index": 71,
+      "text": "\u0e1b\u0e23\u0e30\u0e40\u0e20\u0e17",
+      "style": "Normal"
+    },
+    {
+      "para_index": 72,
+      "text": "\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23",
+      "style": "Normal"
+    },
+    {
+      "para_index": 73,
+      "text": "\u0e2b\u0e19\u0e49\u0e32\u0e17\u0e35\u0e48",
+      "style": "Normal"
+    },
+    {
+      "para_index": 92,
+      "text": "\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21",
+      "style": "Normal"
+    },
+    {
+      "para_index": 93,
+      "text": "\u0e23\u0e30\u0e22\u0e30\u0e17\u0e35\u0e48 1",
+      "style": "Normal"
+    },
+    {
+      "para_index": 94,
+      "text": "\u0e23\u0e30\u0e22\u0e30\u0e17\u0e35\u0e48 2",
+      "style": "Normal"
+    },
+    {
+      "para_index": 95,
+      "text": "\u0e23\u0e30\u0e22\u0e30\u0e17\u0e35\u0e48 3",
+      "style": "Normal"
+    },
+    {
+      "para_index": 96,
+      "text": "\u0e23\u0e30\u0e22\u0e30\u0e17\u0e35\u0e48 4",
+      "style": "Normal"
+    },
+    {
+      "para_index": 97,
+      "text": "\u0e23\u0e30\u0e22\u0e30\u0e17\u0e35\u0e48 5",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "\u0e1a\u0e17\u0e17\u0e35\u0e48 1",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "\u0e1a\u0e17\u0e19\u0e33",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "\u0e1a\u0e17\u0e19\u0e35\u0e49\u0e01\u0e25\u0e48\u0e32\u0e27\u0e16\u0e36\u0e07\u0e17\u0e35\u0e48\u0e21\u0e32 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e1b\u0e23\u0e30\u0e2a\u0e07\u0e04\u0e4c \u0e02\u0e2d\u0e1a\u0e40\u0e02\u0e15 \u0e41\u0e25\u0e30\u0e01\u0e23\u0e2d\u0e1a\u0e01\u0e32\u0e23\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e42\u0e04\u0e23\u0e07\u0e07\u0e32\u0e19 HandVox \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e40\u0e2b\u0e47\u0e19\u0e1b\u0e31\u0e0d\u0e2b\u0e32 \u0e04\u0e27\u0e32\u0e21\u0e2a\u0e32\u0e21\u0e32\u0e23\u0e16\u0e02\u0e2d\u0e07\u0e23\u0e30\u0e1a\u0e1a \u0e41\u0e25\u0e30\u0e1c\u0e25\u0e17\u0e35\u0e48\u0e04\u0e32\u0e14\u0e27\u0e48",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "1.1 \u0e17\u0e35\u0e48\u0e21\u0e32\u0e41\u0e25\u0e30\u0e04\u0e27\u0e32\u0e21\u0e2a\u0e33\u0e04\u0e31\u0e0d\u0e02\u0e2d\u0e07\u0e1b\u0e31\u0e0d\u0e2b\u0e32",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "1.2 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e1b\u0e23\u0e30\u0e2a\u0e07\u0e04\u0e4c\u0e02\u0e2d\u0e07\u0e42\u0e04\u0e23\u0e07\u0e07\u0e32\u0e19",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "\u0e1a\u0e17\u0e17\u0e35\u0e48 1",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "\u0e1a\u0e17\u0e19\u0e33",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "\u0e1a\u0e17\u0e19\u0e35\u0e49\u0e01\u0e25\u0e48\u0e32\u0e27\u0e16\u0e36\u0e07\u0e17\u0e35\u0e48\u0e21\u0e32 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e1b\u0e23\u0e30\u0e2a\u0e07\u0e04\u0e4c \u0e02\u0e2d\u0e1a\u0e40\u0e02\u0e15 \u0e41\u0e25\u0e30\u0e01\u0e23\u0e2d\u0e1a\u0e01\u0e32\u0e23\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e42\u0e04\u0e23\u0e07\u0e07\u0e32\u0e19 HandVox \u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e43\u0e2b\u0e49\u0e40",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "run_text": "1.1 \u0e17\u0e35\u0e48\u0e21\u0e32\u0e41\u0e25\u0e30\u0e04\u0e27\u0e32\u0e21\u0e2a\u0e33\u0e04\u0e31\u0e0d\u0e02\u0e2d\u0e07\u0e1b\u0e31\u0e0d\u0e2b\u0e32",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "1.2 \u0e27\u0e31\u0e15\u0e16\u0e38\u0e1b\u0e23\u0e30\u0e2a\u0e07\u0e04\u0e4c\u0e02\u0e2d\u0e07\u0e42\u0e04\u0e23\u0e07\u0e07\u0e32\u0e19",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

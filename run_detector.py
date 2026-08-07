@@ -1,56 +1,47 @@
 # ============================================================
-# STEP 3 : run_detector.py  (+ TTS เสียง + Sentence Builder)
+# STEP 3 : run_detector.py  (+ TTS เสียง + Sentence Builder จากกล้อง)
 # วิธีใช้ : python run_detector.py
 #
-# 🔊 พูดอัตโนมัติทันทีที่ยกมือแสดงท่าค้างไว้ 1.5 วิ
+# 📝 ค้างท่าที่ผ่านการยืนยัน 1.0 วิ → เพิ่มคำลงประโยคอัตโนมัติ
+# 🔊 เปิด/ปิดการอ่านคำอัตโนมัติได้จากหน้าตั้งค่า
 #
 # คีย์ลัด:
 #   SPACE      → เพิ่มคำปัจจุบันลงประโยค
 #   BACKSPACE  → ลบคำล่าสุดออกจากประโยค
 #   ENTER      → ล้างประโยคทั้งหมด
 #   S          → อ่านประโยคออกเสียง (TTS)
+#   B          → บันทึกประโยคลงประวัติ
 #   ESC        → ออก
 # ============================================================
-import cv2, mediapipe as mp, numpy as np
-import pickle, math, time, os, threading
-from collections import deque, Counter
+import os
+import json
+import pickle
+import time
+from collections import deque
+from pathlib import Path
+
+import cv2
+import mediapipe as mp
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+
 from body_features import FEATURE_COUNT, extract_features, upper_body_bbox
 from gesture_config import GESTURE_COLORS, GESTURE_NAMES
+from gesture_state import DetectionPhase, GestureStateMachine
+from handvox.camera_sentence import GestureHoldTimer
+from handvox.history import HistoryStore
+from handvox.paths import MODEL_MANIFEST_FILE
+from handvox.sentence import SentenceBuilder
+from handvox.settings import SettingsStore
 from sequence_dataset import SEQUENCE_LENGTH
+from tts_service import SpeechService
 
-# ── TTS — gTTS + pygame (ภาษาไทย ต้องการอินเทอร์เน็ต) ──────
-TTS_ENABLED = False
-TTS_ENGINE  = "none"
 
-try:
-    from gtts import gTTS
-    import pygame
-    pygame.mixer.init()
-    TTS_ENABLED = True
-    TTS_ENGINE  = "gtts"
-    print("✅ TTS พร้อมใช้งาน (gTTS)")
-except ImportError:
-    print("⚠️  ไม่พบ gTTS/pygame → pip install gTTS pygame")
-
-def speak(text):
-    if not TTS_ENABLED or not text.strip():
-        return
-    def _run():
-        try:
-            import tempfile, uuid
-            tts = gTTS(text=text, lang="th")
-            tmp = os.path.join(tempfile.gettempdir(), f"tts_{uuid.uuid4().hex}.mp3")
-            tts.save(tmp)
-            pygame.mixer.music.load(tmp)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                time.sleep(0.05)
-            pygame.mixer.music.unload()
-            os.remove(tmp)
-        except Exception as e:
-            print(f"TTS error: {e}")
-    threading.Thread(target=_run, daemon=True).start()
+ROOT = Path(__file__).resolve().parent
+settings_store = SettingsStore()
+settings = settings_store.load_or_default()
+if settings_store.last_error:
+    print(f"⚠️ settings.json ไม่ถูกต้อง จึงใช้ค่าเริ่มต้น: {settings_store.last_error}")
 
 # ── ฟอนต์ไทย ──────────────────────────────────────────────
 def load_font(size):
@@ -61,10 +52,10 @@ def load_font(size):
             return ImageFont.truetype(fp, size)
     return ImageFont.load_default()
 
-fL = load_font(48)
-fM = load_font(30)
-fS = load_font(20)
-fXL = load_font(58)
+fL = load_font(round(48 * settings.font_scale))
+fM = load_font(round(30 * settings.font_scale))
+fS = load_font(round(20 * settings.font_scale))
+fXL = load_font(round(58 * settings.font_scale))
 
 def putThai(img, text, pos, font, color=(255,255,255)):
     pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
@@ -86,18 +77,28 @@ def text_size(text, font):
     return bb[2]-bb[0], bb[3]-bb[1]
 
 # ── โหลด Model ────────────────────────────────────────────
-for f in ["gesture_model.pkl","gesture_labels.pkl"]:
-    if not os.path.exists(f):
-        print(f"❌ ไม่พบ {f} — รัน train_model.py ก่อน!"); exit()
+for filename in ["gesture_model.pkl", "gesture_labels.pkl"]:
+    if not (ROOT / filename).exists():
+        print(f"❌ ไม่พบ {filename} — รัน train_model.py ก่อน!")
+        raise SystemExit(1)
 
-with open("gesture_model.pkl","rb") as f: model = pickle.load(f)
-with open("gesture_labels.pkl","rb") as f: le   = pickle.load(f)
+with (ROOT / "gesture_model.pkl").open("rb") as file:
+    model = pickle.load(file)
+with (ROOT / "gesture_labels.pkl").open("rb") as file:
+    le = pickle.load(file)
 NAMES = list(le.classes_)
 print(f"✅ โหลด model | ท่า: {NAMES}")
-if set(NAMES) != set(GESTURE_NAMES):
+internal_labels = set()
+if MODEL_MANIFEST_FILE.exists():
+    try:
+        manifest = json.loads(MODEL_MANIFEST_FILE.read_text(encoding="utf-8"))
+        internal_labels = set(manifest.get("internal_classes", []))
+    except (OSError, json.JSONDecodeError, TypeError):
+        print("⚠️ อ่าน model_manifest.json ไม่ได้ จึงไม่ใช้คลาสภายใน")
+if set(NAMES) != set(GESTURE_NAMES).union(internal_labels):
     print("❌ รายชื่อท่าในโมเดลไม่ตรงกับ gesture_config.py")
     print("   โปรดรัน python train_model.py เพื่อสร้างโมเดลใหม่")
-    exit()
+    raise SystemExit(1)
 
 # ── MediaPipe ─────────────────────────────────────────────
 mp_h = mp.solutions.holistic
@@ -110,7 +111,7 @@ def color(n): return GESTURE_COLORS.get(n, (0, 255, 160))
 
 if getattr(model, "n_features_in_", FEATURE_COUNT * SEQUENCE_LENGTH) != FEATURE_COUNT * SEQUENCE_LENGTH:
     print("This is not a motion-clip model. Collect clips and train a new model first.")
-    exit()
+    raise SystemExit(1)
 
 def corner_box(img, x1,y1,x2,y2, c, t=3, L=30):
     for pts in [[(x1,y1+L),(x1,y1),(x1+L,y1)],
@@ -120,74 +121,202 @@ def corner_box(img, x1,y1,x2,y2, c, t=3, L=30):
         cv2.polylines(img,[np.array(pts)],False,c,t,cv2.LINE_AA)
 
 # ── State ─────────────────────────────────────────────────
-smooth    = deque(maxlen=3)
-motion_frames = deque(maxlen=SEQUENCE_LENGTH)
-confirmed = ""
-conf_val  = 0.0
-no_hand   = None
-RESET     = 0.4
-THRESH    = 0.40
+MIN_CONFIDENCE = settings.min_confidence
+CONFIRM_FRAMES = settings.confirm_frames
+RELEASE_SECONDS = settings.release_seconds
 
-# ── Auto-speak state ───────────────────────────────────────
-# ยกมือค้างไว้ SPEAK_HOLD_SEC วิ → พูดอัตโนมัติ
-# เอามือออกแล้วยกขึ้นใหม่ → พูดได้ใหม่เลย
-SPEAK_HOLD_SEC  = 1.0      # วินาทีที่ต้องค้างไว้ก่อนพูด
-last_spoken     = ""       # ท่าล่าสุดที่พูดไปแล้ว
-pending_gesture = ""       # ท่าที่กำลังรอจับเวลา
-gesture_start   = 0.0      # เวลาที่เริ่มเห็นท่านี้
+motion_frames = deque(maxlen=SEQUENCE_LENGTH)
+recognizer = GestureStateMachine(
+    min_confidence=MIN_CONFIDENCE,
+    confirm_frames=CONFIRM_FRAMES,
+    release_seconds=RELEASE_SECONDS,
+)
+confirmed = ""
+conf_val = 0.0
+
+# ── Auto-add state ─────────────────────────────────────────
+# ค้างท่าที่ผ่านการยืนยันครบ HOLD_SEC วิ แล้วเพิ่มเพียงหนึ่งครั้ง
+# หลังเพิ่มจะเข้า cooldown จนกว่าจะปล่อยมือหรือเปลี่ยนท่า
+HOLD_SEC = settings.speak_hold_seconds
+hold_timer = GestureHoldTimer(HOLD_SEC)
+
+speech = SpeechService(volume=settings.tts_volume)
+if speech.available:
+    print(f"✅ TTS พร้อมใช้งาน ({speech.engine_name})")
+else:
+    print("⚠️  TTS ใช้งานไม่ได้")
 
 # ── Sentence Builder ───────────────────────────────────────
-sentence     = []
+sentence = SentenceBuilder(
+    prevent_duplicates=settings.prevent_duplicate_words
+)
+history = HistoryStore()
 add_cooldown = 0.0
 COOLDOWN_SEC = 1.0
+WINDOW_TITLE = "Hand Sign Translator — TH"
+sentence_action_regions = {}
+sentence_actions = deque()
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(settings.camera_index)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-prev = time.time()
+if not cap.isOpened():
+    speech.close()
+    det.close()
+    print("❌ เปิดกล้องไม่ได้")
+    raise SystemExit(1)
+prev = time.monotonic()
+
+
+def queue_sentence_action(event, x, y, _flags, _param):
+    """Queue a camera-window button click for the main loop."""
+    if event != cv2.EVENT_LBUTTONUP:
+        return
+    for action, (x1, y1, x2, y2) in sentence_action_regions.items():
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            sentence_actions.append(action)
+            break
+
+
+cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL)
+cv2.setMouseCallback(WINDOW_TITLE, queue_sentence_action)
 
 # ── helper: Sentence Bar ───────────────────────────────────
 def draw_sentence_bar(frm, W, H, sentence):
-    BAR_H = 80
+    BAR_H = 146
     bar_y = H - BAR_H - 32
     ov = frm.copy()
     cv2.rectangle(ov, (0, bar_y), (W, bar_y+BAR_H), (15,15,15), -1)
     cv2.addWeighted(ov, .85, frm, .15, 0, frm)
     cv2.line(frm, (0, bar_y), (W, bar_y), (60,60,60), 1)
-    frm = putThai(frm, "📝 ประโยค:", (12, bar_y+6), fS, (130,130,130))
-    sx = 130
-    for word in sentence:
-        c = color(word)
-        tw, th = text_size(word, fM)
-        pad = 6
-        cv2.rectangle(frm, (sx-pad, bar_y+12), (sx+tw+pad, bar_y+12+th+4),
-                      tuple(int(v*0.35) for v in c), -1)
-        cv2.rectangle(frm, (sx-pad, bar_y+12), (sx+tw+pad, bar_y+12+th+4), c, 1)
-        frm = putThai(frm, word, (sx, bar_y+14), fM, c)
-        sx += tw + pad*2 + 10
-        if sx > W - 200:
-            sx = 130
-            bar_y += 40
-    frm = putThai(frm, "SPACE =เพิ่มคำ  BS =ลบ  ENTER =ล้าง  S =อ่านเสียง",
-                  (12, bar_y+BAR_H-20), fS, (70,70,70))
-    frm = putThai(frm, f"{len(sentence)} คำ", (W-70, bar_y+6), fS, (80,80,80))
+    frm = putThai(frm, "ประโยคปัจจุบัน", (16, bar_y+7), fS, (150,150,150))
+    frm = putThai(frm, f"{len(sentence)} คำ", (W-74, bar_y+7), fS, (150,150,150))
+
+    sentence_text = sentence.text or "ยังไม่มีคำ — แสดงท่าค้างไว้เพื่อเริ่มสร้างประโยค"
+    while text_size(sentence_text, fM)[0] > W - 34 and len(sentence_text) > 4:
+        sentence_text = "…" + sentence_text[2:]
+    sentence_color = (245,245,245) if sentence.text else (125,125,125)
+    frm = putThai(frm, sentence_text, (16, bar_y+34), fM, sentence_color)
+
+    actions = (
+        ("add", "เพิ่มคำ", "SPACE", (235,99,37)),
+        ("remove", "ลบคำล่าสุด", "BACKSPACE", (75,75,75)),
+        ("speak", "อ่านประโยค", "S", (61,128,21)),
+        ("save", "บันทึก", "B", (61,128,21)),
+        ("clear", "ล้าง", "ENTER", (28,28,185)),
+    )
+    gap = 8
+    margin = 14
+    button_y1 = bar_y + 83
+    button_y2 = bar_y + 136
+    button_w = max(70, (W - margin*2 - gap*(len(actions)-1)) // len(actions))
+    sentence_action_regions.clear()
+    for index, (action, label, shortcut, fill) in enumerate(actions):
+        x1 = margin + index * (button_w + gap)
+        x2 = W - margin if index == len(actions)-1 else x1 + button_w
+        sentence_action_regions[action] = (x1, button_y1, x2, button_y2)
+        cv2.rectangle(frm, (x1, button_y1), (x2, button_y2), fill, -1)
+        cv2.rectangle(frm, (x1, button_y1), (x2, button_y2), (125,125,125), 1)
+        label_w, _ = text_size(label, fS)
+        frm = putThai(frm, label, (x1 + max(6, (x2-x1-label_w)//2), button_y1+3), fS)
+        shortcut_scale = 0.34
+        shortcut_size = cv2.getTextSize(
+            shortcut, cv2.FONT_HERSHEY_SIMPLEX, shortcut_scale, 1
+        )[0]
+        shortcut_x = x1 + max(5, (x2-x1-shortcut_size[0])//2)
+        cv2.putText(
+            frm,
+            shortcut,
+            (shortcut_x, button_y2-7),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            shortcut_scale,
+            (225,225,225),
+            1,
+            cv2.LINE_AA,
+        )
     return frm
 
 # ── helper: Hold Progress Bar ──────────────────────────────
-def draw_hold_bar(frm, W, H, hold_pct):
-    """progress bar สีฟ้า แสดงความคืบหน้าของการค้างท่า"""
-    bar_y = H - 32 - 80 - 16
+def draw_hold_bar(frm, W, H, hold_pct, action_label):
+    """Progress toward automatically adding the confirmed word."""
+    bar_y = H - 32 - 146 - 16
     bar_w = int((W - 40) * min(hold_pct, 1.0))
     cv2.rectangle(frm, (20, bar_y), (W-20, bar_y+10), (25,25,25), -1)
     col = (0, 255, 80) if hold_pct >= 1.0 else (0, 200, 255)
     cv2.rectangle(frm, (20, bar_y), (20+bar_w, bar_y+10), col, -1)
-    label = "🔊 ค้างไว้เพื่อพูด..." if hold_pct < 1.0 else "🔊 กำลังพูด..."
+    label = f"ค้างท่าไว้เพื่อ{action_label}..." if hold_pct < 1.0 else f"{action_label}แล้ว"
     frm = putThai(frm, f"{label}  {hold_pct*100:.0f}%",
                   (25, bar_y-22), fS, col)
     return frm
 
 print("\n🎥 กล้องเปิดแล้ว | ESC ออก")
-print("🔊 ยกมือแสดงท่าค้างไว้ 1.0 วิ → พูดอัตโนมัติ\n")
+if settings.auto_add_words:
+    print(f"📝 แสดงท่าค้างไว้ {HOLD_SEC:.1f} วิ → เพิ่มคำลงประโยคอัตโนมัติ")
+else:
+    print("📝 การเพิ่มคำอัตโนมัติปิดอยู่ — กด Space หรือปุ่ม 'เพิ่มคำ'")
+print("   ใช้ปุ่มบนหน้ากล้องเพื่อลบ อ่าน บันทึก หรือล้างประโยค\n")
+
+
+def save_sentence(source="detector-manual"):
+    if not sentence:
+        print("⚠️ ประโยคว่างอยู่")
+        return False
+    try:
+        history.add(sentence.text, source=source, limit=settings.history_limit)
+        print(f"💾 บันทึกประโยค: {sentence.text}")
+        return True
+    except Exception as error:
+        print(f"⚠️ บันทึกประวัติไม่ได้: {error}")
+        return False
+
+
+def speak_sentence():
+    if not sentence:
+        print("⚠️ ประโยคว่างอยู่")
+        return False
+    full = sentence.text
+    print(f"🔊 อ่าน: {full}")
+    if not speech.speak(full):
+        print("⚠️ ยังส่งข้อความเข้าคิวเสียงไม่ได้")
+        return False
+    if settings.save_spoken_sentences:
+        save_sentence(source="detector-tts")
+    return True
+
+
+def add_confirmed_word(label, now):
+    global add_cooldown, detection_phase
+    if not label or not recognizer.speech_armed:
+        print("⚠️ ยังไม่มีคำใหม่ที่ยืนยันแล้ว หรือยังไม่ได้ปล่อยท่าก่อนหน้า")
+        return False
+    if now - add_cooldown <= COOLDOWN_SEC:
+        return False
+    added = sentence.add(label)
+    add_cooldown = now
+    recognizer.mark_emitted(label)
+    detection_phase = recognizer.phase
+    hold_timer.reset()
+    if added:
+        print(f"📝 เพิ่ม: {label}  |  ประโยค: {sentence.text}")
+    else:
+        print("⚠️ ไม่เพิ่มคำเดิมซ้ำติดกัน")
+    return added
+
+
+def perform_sentence_action(action, label, now):
+    if action == "add":
+        add_confirmed_word(label, now)
+    elif action == "remove":
+        removed = sentence.remove_last()
+        if removed:
+            print(f"🗑️ ลบ: {removed}  |  ประโยค: {sentence.text or '-'}")
+    elif action == "clear":
+        sentence.clear()
+        print("🔄 ล้างประโยคแล้ว")
+    elif action == "speak":
+        speak_sentence()
+    elif action == "save":
+        save_sentence()
 
 while True:
     ok, frm = cap.read()
@@ -195,7 +324,7 @@ while True:
     frm = cv2.flip(frm, 1)
     H, W = frm.shape[:2]
     res  = det.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
-    now  = time.time()
+    now  = time.monotonic()
 
     cur   = ""
     cur_c = 0.0
@@ -203,79 +332,70 @@ while True:
 
     feats = extract_features(res)
     if feats is not None:
-        no_hand = None
         bbox = upper_body_bbox(res, W, H)
         motion_frames.append(feats)
         if len(motion_frames) == SEQUENCE_LENGTH:
             sequence = np.array(motion_frames, dtype=np.float32).reshape(1, -1)
             proba = model.predict_proba(sequence)[0]
             ti    = np.argmax(proba)
-            tc    = proba[ti]
-            if tc >= THRESH:
-                cur   = le.classes_[ti]
-                cur_c = float(tc)
+            cur   = le.classes_[ti]
+            cur_c = float(proba[ti])
+            if cur in internal_labels:
+                # neutral/คลาสภายในใช้ลด false activation แต่ไม่แสดงเป็นคำ
+                cur = ""
+                cur_c = 0.0
+
+    decision = recognizer.update(
+        cur, cur_c, landmarks_visible=feats is not None, now=now
+    )
+    confirmed = decision.label
+    conf_val = decision.confidence
+    detection_phase = decision.phase
+    if decision.released:
+        # อย่าให้เฟรมจากท่าเก่าปะปนกับการยกมือรอบใหม่
+        motion_frames.clear()
+
+    # ── Auto-add: จับเวลาค้างท่า ────────────────────────────
+    # ใช้ผลที่ผ่าน threshold และยืนยันครบหลายเฟรมเท่านั้น
+    hold_enabled = settings.auto_add_words or (settings.auto_tts and speech.available)
+    if hold_enabled:
+        capture = hold_timer.update(confirmed, recognizer.speech_armed, now)
     else:
-        if no_hand is None:
-            no_hand = now
-        elif now - no_hand > RESET:
-            smooth.clear()
-            motion_frames.clear()
-            confirmed = ""; conf_val = 0.0
-            # รีเซ็ต hold timer เมื่อเอามือออก
-            # last_spoken รีเซ็ตด้วย → ยกมือขึ้นใหม่พูดได้ทันที
-            pending_gesture = ""
-            gesture_start   = 0.0
-            last_spoken     = ""
+        capture = hold_timer.update("", False, now)
 
-    if cur:
-        smooth.append((cur, cur_c))
-        labels = [x[0] for x in smooth]
-        top    = Counter(labels).most_common(1)[0][0]
-        confs  = [x[1] for x in smooth if x[0]==top]
-        confirmed = top
-        conf_val  = sum(confs)/len(confs)
+    hold_pct = capture.progress
+    if capture.ready_label:
+        emitted_label = capture.ready_label
+        if settings.auto_add_words:
+            if sentence.add(emitted_label):
+                print(f"📝 เพิ่มอัตโนมัติ: {emitted_label}  |  ประโยค: {sentence.text}")
+            else:
+                print("⚠️ ไม่เพิ่มคำเดิมซ้ำติดกัน")
+        if settings.auto_tts and speech.available:
+            if speech.speak(emitted_label):
+                print(f"🔊 พูด: {emitted_label}")
+            else:
+                print("⚠️ ยังส่งคำเข้าคิวเสียงไม่ได้")
+        recognizer.mark_emitted(emitted_label)
+        detection_phase = recognizer.phase
+        hold_pct = 1.0
 
-    # ── Auto-speak: จับเวลาค้างท่า ──────────────────────────
-    # ถ้าท่าเปลี่ยน → reset จับเวลาใหม่
-    if confirmed != pending_gesture:
-        pending_gesture = confirmed
-        gesture_start   = now
-
-    hold_pct = 0.0
-    if confirmed and confirmed != last_spoken:
-        hold_pct = (now - gesture_start) / SPEAK_HOLD_SEC
-        if hold_pct >= 1.0:
-            speak(confirmed)
-            last_spoken = confirmed
-            print(f"🔊 พูด: {confirmed}")
-
-    # ── keyboard ────────────────────────────────────────────
+    # ── keyboard + ปุ่มบนหน้ากล้อง ─────────────────────────
     k = cv2.waitKey(1) & 0xFF
-
-    if k == ord(' '):       # SPACE → เพิ่มคำลงประโยค
-        if confirmed and (now - add_cooldown) > COOLDOWN_SEC:
-            sentence.append(confirmed)
-            add_cooldown = now
-            print(f"📝 เพิ่ม: {confirmed}  |  ประโยค: {' '.join(sentence)}")
-
-    elif k == 8:            # BACKSPACE → ลบคำล่าสุด
-        if sentence:
-            print(f"🗑️  ลบ: {sentence.pop()}")
-
-    elif k == 13:           # ENTER → ล้างประโยค
-        sentence.clear()
-        print("🔄 ล้างประโยคแล้ว")
-
-    elif k == ord('s'):     # S → อ่านประโยคทั้งหมด
-        if sentence:
-            full = " ".join(sentence)
-            print(f"🔊 อ่าน: {full}")
-            speak(full)
-        else:
-            print("⚠️  ประโยคว่างอยู่")
-
-    elif k == 27:           # ESC → ออก
+    if k == 27:             # ESC → ออก
         break
+    key_actions = {
+        ord(' '): "add",
+        8: "remove",
+        13: "clear",
+        ord('s'): "speak",
+        ord('S'): "speak",
+        ord('b'): "save",
+        ord('B'): "save",
+    }
+    action = sentence_actions.popleft() if sentence_actions else key_actions.get(k)
+    if action:
+        perform_sentence_action(action, confirmed, now)
 
     # ── วาด UI ──────────────────────────────────────────────
 
@@ -288,6 +408,9 @@ while True:
                   (18,8), fM, (230,230,230))
     cv2.putText(frm, f"FPS:{fps:.0f}", (W-80,34),
                 cv2.FONT_HERSHEY_SIMPLEX, .6, (120,120,120), 1)
+    esc_text = "ESC · ปิดกล้อง" if W >= 900 else "ESC"
+    esc_width, _ = text_size(esc_text, fS)
+    frm = putThai(frm, esc_text, (max(12, W-esc_width-100), 13), fS, (155,155,155))
 
     # Bounding box + label
     if bbox:
@@ -306,12 +429,27 @@ while True:
             by1=max(0,y1-th-18);    by2=y1
             cv2.rectangle(frm,(bx1,by1),(bx2,by2),c,-1)
             frm = putThaiC(frm, label, cx, by1+4, fL, (0,0,0))
+        elif detection_phase is DetectionPhase.CANDIDATE:
+            frm = putThai(frm, "กำลังยืนยันผล...", (x1+6,max(y1-28,4)),
+                          fS, (0,200,255))
+        elif len(motion_frames) < SEQUENCE_LENGTH:
+            frm = putThai(frm, "กำลังเก็บการเคลื่อนไหว...", (x1+6,max(y1-28,4)),
+                          fS, (120,120,120))
+        elif cur_c > 0:
+            frm = putThai(frm, f"ยังไม่มั่นใจ {cur_c:.0%}",
+                          (x1+6,max(y1-28,4)), fS, (0,140,255))
         else:
             frm = putThai(frm,"กำลังตรวจจับ...",(x1+6,max(y1-28,4)),fS,(120,120,120))
 
     # Hold progress bar
-    if confirmed and confirmed != last_spoken and hold_pct > 0:
-        frm = draw_hold_bar(frm, W, H, hold_pct)
+    if recognizer.speech_armed and confirmed and hold_pct > 0:
+        if settings.auto_add_words and settings.auto_tts and speech.available:
+            hold_action = "เพิ่มคำและอ่าน"
+        elif settings.auto_add_words:
+            hold_action = "เพิ่มคำ"
+        else:
+            hold_action = "อ่านคำ"
+        frm = draw_hold_bar(frm, W, H, hold_pct, hold_action)
 
     # Confidence bar
     if conf_val > 0:
@@ -326,17 +464,28 @@ while True:
     frm = draw_sentence_bar(frm, W, H, sentence)
 
     # badge
-    if TTS_ENABLED:
-        badge_txt = f"🔊 Auto TTS ({TTS_ENGINE})"
+    if settings.auto_add_words and settings.auto_tts and speech.available:
+        badge_txt = f"📝 สร้างประโยคอัตโนมัติ  |  🔊 {speech.engine_name}"
         badge_col = (0,200,80)
+    elif settings.auto_add_words:
+        badge_txt = "📝 สร้างประโยคอัตโนมัติ"
+        badge_col = (0,200,80)
+    elif settings.auto_tts and speech.available:
+        badge_txt = f"🔊 Auto TTS ({speech.engine_name})"
+        badge_col = (0,180,220)
+    elif speech.available:
+        badge_txt = f"🔊 TTS พร้อม ({speech.engine_name})"
+        badge_col = (0,180,220)
     else:
         badge_txt = "🔇 TTS OFF"
         badge_col = (80,80,80)
-    frm = putThai(frm, badge_txt, (W-200, 60), fS, badge_col)
+    badge_width, _ = text_size(badge_txt, fS)
+    frm = putThai(frm, badge_txt, (max(12, W-badge_width-18), 60), fS, badge_col)
 
-    cv2.putText(frm,"ESC=quit",(12,H-5),
-                cv2.FONT_HERSHEY_SIMPLEX,.38,(60,60,60),1)
-    cv2.imshow("Hand Sign Translator — TH", frm)
+    cv2.imshow(WINDOW_TITLE, frm)
 
-cap.release(); cv2.destroyAllWindows()
+speech.close()
+det.close()
+cap.release()
+cv2.destroyAllWindows()
 print("👋 ปิดโปรแกรมแล้ว")

@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-title HandVox - Train Model
+title HandVox - Legacy Model Training
 
 if not exist ".venv\Scripts\python.exe" goto :setup_required
 ".venv\Scripts\python.exe" --version >nul 2>&1
@@ -19,7 +19,8 @@ if errorlevel 1 exit /b 1
 :train
 echo.
 echo ==========================================
-echo        HandVox - Model Training
+echo     HandVox - Legacy Model Training
+echo  Use GUI Prepare Training for Dataset V2
 echo ==========================================
 echo.
 ".venv\Scripts\python.exe" train_model.py

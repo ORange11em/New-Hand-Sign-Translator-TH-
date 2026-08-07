@@ -1,0 +1,14 @@
+{
+  "camera_index": 0,
+  "min_confidence": 0.65,
+  "confirm_frames": 4,
+  "release_seconds": 0.35,
+  "speak_hold_seconds": 1.0,
+  "auto_add_words": true,
+  "auto_tts": true,
+  "tts_volume": 0.85,
+  "font_scale": 1.0,
+  "prevent_duplicate_words": true,
+  "save_spoken_sentences": true,
+  "history_limit": 100
+}

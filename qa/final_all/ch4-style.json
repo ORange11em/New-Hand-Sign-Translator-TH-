@@ -1,0 +1,170 @@
+{
+  "input": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\\u0e1c\u0e25\u0e25\u0e31\u0e1e\u0e18\u0e4c\u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23\\\u0e1a\u0e17\u0e17\u0e35\u0e48 4_\u0e09\u0e1a\u0e31\u0e1a\u0e1b\u0e23\u0e31\u0e1a\u0e1b\u0e23\u0e38\u0e07_HandVox.docx",
+  "fonts_by_char_count": {
+    "Angsana New": 6975
+  },
+  "direct_run_formatting_runs": 205,
+  "direct_paragraph_formatting_paragraphs": 175,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 1,
+      "text": "\u0e1a\u0e17\u0e17\u0e35\u0e48 4",
+      "style": "Normal"
+    },
+    {
+      "para_index": 2,
+      "text": "\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e07\u0e32\u0e19\u0e41\u0e25\u0e30\u0e01\u0e32\u0e23\u0e1b\u0e23\u0e30\u0e40\u0e21\u0e34\u0e19\u0e1c\u0e25",
+      "style": "Normal"
+    },
+    {
+      "para_index": 48,
+      "text": "\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23",
+      "style": "Normal"
+    },
+    {
+      "para_index": 49,
+      "text": "\u0e1c\u0e25\u0e17\u0e35\u0e48\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e44\u0e14\u0e49",
+      "style": "Normal"
+    },
+    {
+      "para_index": 50,
+      "text": "\u0e04\u0e27\u0e32\u0e21\u0e2b\u0e21\u0e32\u0e22",
+      "style": "Normal"
+    },
+    {
+      "para_index": 72,
+      "text": "\u0e23\u0e32\u0e22\u0e01\u0e32\u0e23",
+      "style": "Normal"
+    },
+    {
+      "para_index": 73,
+      "text": "\u0e04\u0e48\u0e32\u0e17\u0e35\u0e48\u0e43\u0e0a\u0e49\u0e2b\u0e23\u0e37\u0e2d\u0e1c\u0e25\u0e25\u0e31\u0e1e\u0e18\u0e4c",
+      "style": "Normal"
+    },
+    {
+      "para_index": 74,
+      "text": "\u0e23\u0e32\u0e22\u0e25\u0e30\u0e40\u0e2d\u0e35\u0e22\u0e14",
+      "style": "Normal"
+    },
+    {
+      "para_index": 99,
+      "text": "\u0e1b\u0e49\u0e32\u0e22\u0e01\u0e33\u0e01\u0e31\u0e1a",
+      "style": "Normal"
+    },
+    {
+      "para_index": 100,
+      "text": "\u0e0a\u0e38\u0e14\u0e17\u0e14\u0e2a\u0e2d\u0e1a",
+      "style": "Normal"
+    },
+    {
+      "para_index": 101,
+      "text": "Precision",
+      "style": "Normal"
+    },
+    {
+      "para_index": 102,
+      "text": "Recall",
+      "style": "Normal"
+    },
+    {
+      "para_index": 103,
+      "text": "F1-score",
+      "style": "Normal"
+    },
+    {
+      "para_index": 129,
+      "text": "\u0e08\u0e23\u0e34\u0e07 / \u0e17\u0e33\u0e19\u0e32\u0e22",
+      "style": "Normal"
+    },
+    {
+      "para_index": 130,
+      "text": "\u0e02\u0e2d\u0e1a\u0e04\u0e38\u0e13",
+      "style": "Normal"
+    },
+    {
+      "para_index": 131,
+      "text": "\u0e02\u0e2d\u0e42\u0e17\u0e29",
+      "style": "Normal"
+    },
+    {
+      "para_index": 132,
+      "text": "\u0e2a\u0e27\u0e31\u0e2a\u0e14\u0e35",
+      "style": "Normal"
+    },
+    {
+      "para_index": 133,
+      "text": "\u0e44\u0e21\u0e48\u0e40\u0e1b\u0e47\u0e19\u0e44\u0e23",
+      "style": "Normal"
+    },
+    {
+      "para_index": 154,
+      "text": "Fold",
+      "style": "Normal"
+    },
+    {
+      "para_index": 155,
+      "text": "Accuracy",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "\u0e1a\u0e17\u0e17\u0e35\u0e48 4",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e07\u0e32\u0e19\u0e41\u0e25\u0e30\u0e01\u0e32\u0e23\u0e1b\u0e23\u0e30\u0e40\u0e21\u0e34\u0e19\u0e1c\u0e25",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "\u0e1a\u0e17\u0e19\u0e35\u0e49\u0e19\u0e33\u0e40\u0e2a\u0e19\u0e2d\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e0a\u0e38\u0e14\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e25\u0e30\u0e41\u0e1a\u0e1a\u0e08\u0e33\u0e25\u0e2d\u0e07 HandVox \u0e23\u0e38\u0e48\u0e19\u0e04\u0e25\u0e34\u0e1b\u0e01\u0e32\u0e23\u0e40\u0e04\u0e25\u0e37\u0e48\u0e2d\u0e19\u0e44\u0e2b\u0e27 \u0e13 \u0e27\u0e31\u0e19\u0e17\u0e35\u0e48 4 \u0e2a\u0e34\u0e07\u0e2b\u0e32\u0e04\u0e21 2569 \u0e1c\u0e25\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14\u0e04\u0e33\u0e19\u0e27\u0e13\u0e0b\u0e49\u0e33\u0e08\u0e32\u0e01\u0e44\u0e1f",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "4.1 \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e08\u0e31\u0e14\u0e40\u0e15\u0e23\u0e35\u0e22\u0e21\u0e41\u0e25\u0e30\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "4.2 \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e1d\u0e36\u0e01\u0e41\u0e25\u0e30\u0e01\u0e32\u0e23\u0e1b\u0e23\u0e30\u0e40\u0e21\u0e34\u0e19\u0e41\u0e1a\u0e1a\u0e41\u0e1a\u0e48\u0e07\u0e0a\u0e38\u0e14\u0e17\u0e14\u0e2a\u0e2d\u0e1a",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "\u0e1a\u0e17\u0e17\u0e35\u0e48 4",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e07\u0e32\u0e19\u0e41\u0e25\u0e30\u0e01\u0e32\u0e23\u0e1b\u0e23\u0e30\u0e40\u0e21\u0e34\u0e19\u0e1c\u0e25",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "\u0e1a\u0e17\u0e19\u0e35\u0e49\u0e19\u0e33\u0e40\u0e2a\u0e19\u0e2d\u0e1c\u0e25\u0e01\u0e32\u0e23\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e0a\u0e38\u0e14\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e41\u0e25\u0e30\u0e41\u0e1a\u0e1a\u0e08\u0e33\u0e25\u0e2d\u0e07 HandVox \u0e23\u0e38\u0e48\u0e19\u0e04\u0e25\u0e34\u0e1b\u0e01\u0e32\u0e23\u0e40\u0e04\u0e25\u0e37\u0e48\u0e2d\u0e19\u0e44\u0e2b\u0e27 \u0e13 \u0e27\u0e31\u0e19\u0e17",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "run_text": "4.1 \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e08\u0e31\u0e14\u0e40\u0e15\u0e23\u0e35\u0e22\u0e21\u0e41\u0e25\u0e30\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "run_text": "4.2 \u0e1c\u0e25\u0e01\u0e32\u0e23\u0e1d\u0e36\u0e01\u0e41\u0e25\u0e30\u0e01\u0e32\u0e23\u0e1b\u0e23\u0e30\u0e40\u0e21\u0e34\u0e19\u0e41\u0e1a\u0e1a\u0e41\u0e1a\u0e48\u0e07\u0e0a\u0e38\u0e14\u0e17\u0e14\u0e2a\u0e2d\u0e1a",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

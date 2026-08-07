@@ -11,6 +11,7 @@ from sequence_dataset import CLIPS_PER_GESTURE, count_clips, load_dataset
 
 ROOT = Path(__file__).resolve().parent
 CUSTOM_FILE = ROOT / "custom_gestures.json"
+MODEL_MANIFEST_FILE = ROOT / "model_manifest.json"
 SAMPLES = CLIPS_PER_GESTURE
 COLORS = [
     [0, 220, 255], [255, 120, 0], [0, 220, 100], [255, 0, 160],
@@ -78,6 +79,10 @@ def ask_for_gesture():
 
 
 def main():
+    if MODEL_MANIFEST_FILE.exists():
+        print("ไม่อนุญาตให้เพิ่มท่าด้วย workflow เดิมหลังติดตั้งโมเดล Dataset V2")
+        print("กรุณาใช้หน้า 'คำศัพท์' และ 'เตรียมเทรน' ใน HandVox")
+        return 1
     name, needs_collection = ask_for_gesture()
     if needs_collection:
         result = subprocess.run(

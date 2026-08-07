@@ -15,9 +15,14 @@ from sequence_dataset import CLIPS_PER_GESTURE, DATA_FILE, SEQUENCE_LENGTH, load
 ROOT = Path(__file__).resolve().parent
 MODEL_FILE = ROOT / "gesture_model.pkl"
 LABEL_FILE = ROOT / "gesture_labels.pkl"
+MODEL_MANIFEST_FILE = ROOT / "model_manifest.json"
 
 
 def main():
+    if MODEL_MANIFEST_FILE.exists():
+        print("ตรวจพบโมเดล Dataset V2 ที่ติดตั้งแล้ว")
+        print("เพื่อป้องกันการเขียนทับ กรุณาเทรนจากหน้า 'เตรียมเทรน' หรือ training_cli.py")
+        return 1
     clips, labels = load_dataset()
     if not len(clips):
         print("ยังไม่มีคลิปข้อมูล เปิด Add_New_Gesture.bat เพื่อเพิ่มท่าแรก")

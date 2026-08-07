@@ -12,6 +12,7 @@ from sequence_dataset import DATA_FILE, count_clips, load_dataset, remove_gestur
 
 ROOT = Path(__file__).resolve().parent
 CUSTOM_FILE = ROOT / "custom_gestures.json"
+MODEL_MANIFEST_FILE = ROOT / "model_manifest.json"
 
 
 def read_custom_gestures():
@@ -38,6 +39,10 @@ def backup():
 
 
 def main():
+    if MODEL_MANIFEST_FILE.exists():
+        print("ไม่อนุญาตให้ลบท่าด้วย workflow เดิมหลังติดตั้งโมเดล Dataset V2")
+        print("กรุณาสร้าง training_config และทดลองรุ่นใหม่แทน")
+        return 1
     entries = read_custom_gestures()
     if not entries:
         print("ยังไม่มีท่าที่เพิ่มเองให้ลบ")
