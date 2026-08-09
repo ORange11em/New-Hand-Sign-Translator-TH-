@@ -1,3 +1,10 @@
+"""หน้าจอหลักทั้งหมดของ HandVox สร้างด้วย Tkinter.
+
+ไฟล์นี้ประกอบด้วยหน้า Dashboard, สร้างประโยค, คำศัพท์, Dataset V2,
+ตัวช่วยเตรียมเทรน, ตั้งค่า และวิธีใช้ รวมถึงคลาส HandVoxApp ที่เชื่อมทุกหน้า
+เข้ากับบริการเสียง การเปิดสคริปต์ และไฟล์ข้อมูลของโปรเจกต์
+"""
+
 from __future__ import annotations
 
 import logging
@@ -50,16 +57,21 @@ COLORS = {
 }
 
 
+# ── เครื่องมือ UI ที่ใช้ร่วมกันทุกหน้า ──────────────────────
 def clear_children(widget: tk.Misc) -> None:
+    """ลบ widget ลูกทั้งหมดก่อนวาดรายการใหม่จากข้อมูลล่าสุด."""
     for child in widget.winfo_children():
         child.destroy()
 
 
 def section_card(parent: tk.Misc, padding: int = 18) -> ttk.Frame:
+    """สร้างกรอบ card มาตรฐานตามสีและระยะห่างของแอป."""
     return ttk.Frame(parent, style="OutlinedCard.TFrame", padding=padding)
 
 
 class ScrollableFrame(ttk.Frame):
+    """พื้นที่เนื้อหาที่เลื่อนแนวตั้งได้และปรับความกว้างตามหน้าต่าง."""
+
     def __init__(self, parent: tk.Misc) -> None:
         super().__init__(parent, style="Page.TFrame")
         self.canvas = tk.Canvas(
@@ -85,6 +97,8 @@ class ScrollableFrame(ttk.Frame):
 
 
 class BasePage(ttk.Frame):
+    """โครงหัวข้อและคำอธิบายร่วมที่ทุกหน้าในแอปสืบทอด."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp", title: str, subtitle: str) -> None:
         super().__init__(parent, style="Page.TFrame", padding=(28, 24))
         self.app = app
@@ -95,7 +109,10 @@ class BasePage(ttk.Frame):
         pass
 
 
+# ── หน้า 1: ภาพรวมและตรวจความพร้อม ─────────────────────────
 class DashboardPage(BasePage):
+    """แสดงจำนวนท่า/คลิปและผล diagnostics โดยไม่เปิดกล้อง."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -188,7 +205,10 @@ class DashboardPage(BasePage):
         )
 
 
+# ── หน้า 2: สร้างประโยคโดยไม่ใช้กล้อง ─────────────────────
 class SentencePage(BasePage):
+    """สร้าง แก้ อ่าน คัดลอก และบันทึกประโยคจากคลังคำปัจจุบัน."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -370,7 +390,10 @@ class SentencePage(BasePage):
                 self._update_sentence()
 
 
+# ── หน้า 3: คำศัพท์ที่ใช้ได้และแผนคำใหม่ ───────────────────
 class GesturesPage(BasePage):
+    """แยกท่าที่โมเดลใช้ได้ออกจากรายการท่าที่วางแผนเก็บในอนาคต."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -560,7 +583,10 @@ class GesturesPage(BasePage):
         webbrowser.open(url)
 
 
+# ── หน้า 4: สถานะ Dataset V2 ───────────────────────────────
 class DatasetPage(BasePage):
+    """สรุป metadata, inventory และโครงสร้าง Dataset V2."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -649,6 +675,8 @@ class DatasetPage(BasePage):
 
 
 class TrainingPageLegacy(BasePage):
+    """หน้าฝึกแบบแท็บรุ่นเก่าที่เก็บไว้เพื่ออ้างอิงและไม่ถูกสร้างในแอปปัจจุบัน."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -979,7 +1007,10 @@ class TrainingPageLegacy(BasePage):
             self.app.show_error("ติดตั้งโมเดลไม่สำเร็จ", exc)
 
 
+# ── หน้า 5: Wizard เตรียมเทรน 5 ขั้น ───────────────────────
 class TrainingPage(BasePage):
+    """นำผู้ใช้ยืนยันคำ เก็บ/ตรวจคลิป เทรน และอ่านผลตามลำดับ."""
+
     STEP_TITLES = (
         "1  ยืนยันท่า",
         "2  เก็บข้อมูล",
@@ -1897,7 +1928,10 @@ class TrainingPage(BasePage):
             self.app.show_error("ติดตั้งโมเดลไม่สำเร็จ", exc)
 
 
+# ── หน้า 6: การตั้งค่ากล้อง การยืนยันผล และเสียง ───────────
 class SettingsPage(BasePage):
+    """แก้และตรวจ AppSettings ก่อนบันทึกใช้ในการเปิด detector ครั้งถัดไป."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -1995,7 +2029,10 @@ class SettingsPage(BasePage):
             self.refresh()
 
 
+# ── หน้า 7: วิธีใช้และขอบเขตของระบบ ────────────────────────
 class HelpPage(BasePage):
+    """แสดงคำอธิบายขอบเขต ลำดับงาน และตำแหน่งไฟล์ช่วยเหลือ."""
+
     def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
         super().__init__(
             parent,
@@ -2049,7 +2086,10 @@ class HelpPage(BasePage):
             )
 
 
+# ── ตัวแอปหลัก: เมนู ธีม หน้า และบริการร่วม ───────────────
 class HandVoxApp:
+    """ประกอบหน้าทั้งหมด จัดเมนู สถานะ และเชื่อมบริการภายนอก."""
+
     NAV_ITEMS = (
         ("dashboard", "ภาพรวม"),
         ("sentence", "สร้างประโยค"),
@@ -2323,6 +2363,7 @@ class HandVoxApp:
 
 
 def run() -> None:
+    """สร้าง Tk root ตั้งขนาดขั้นต่ำ และเริ่ม event loop ของ HandVox."""
     logging.basicConfig(
         filename=LOG_FILE,
         level=logging.INFO,

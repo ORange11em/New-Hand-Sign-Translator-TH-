@@ -1,4 +1,4 @@
-"""Read-only, reproducible evaluation summary for the current HandVox dataset."""
+"""อ่าน Dataset/โมเดลเดิมและสร้างสรุปผลที่ทำซ้ำได้ โดยไม่แก้ไฟล์ต้นฉบับ."""
 
 from __future__ import annotations
 

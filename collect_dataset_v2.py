@@ -1,4 +1,4 @@
-"""Collect auditable HandVox V2 clips for one signer/session/gesture."""
+"""เก็บ Dataset V2 ทีละผู้ทำท่า เซสชัน และคำ พร้อม metadata ที่ตรวจสอบย้อนหลังได้."""
 
 import argparse
 from datetime import datetime
@@ -23,6 +23,7 @@ WINDOW_TITLE = "HandVox - Dataset V2 Collector"
 
 
 def load_font(size):
+    """เลือกฟอนต์ภาษาไทยสำหรับข้อความบนภาพกล้อง."""
     for path in ("C:/Windows/Fonts/THSarabunNew.ttf", "C:/Windows/Fonts/tahoma.ttf"):
         if os.path.exists(path):
             return ImageFont.truetype(path, size)
@@ -35,6 +36,7 @@ FONT_SMALL = load_font(21)
 
 
 def thai_text(image, text, position, font, color=(255, 255, 255)):
+    """วาดข้อความไทยบนภาพ OpenCV ผ่าน Pillow."""
     pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     drawer = ImageDraw.Draw(pil)
     drawer.text(position, text, font=font, fill=(color[2], color[1], color[0]))
@@ -42,6 +44,7 @@ def thai_text(image, text, position, font, color=(255, 255, 255)):
 
 
 def centered_text(image, text, y, font, color=(255, 255, 255)):
+    """วาดข้อความไว้กึ่งกลางเฟรมตามตำแหน่งแนวตั้ง."""
     pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     drawer = ImageDraw.Draw(pil)
     box = drawer.textbbox((0, 0), text, font=font)
@@ -51,6 +54,7 @@ def centered_text(image, text, y, font, color=(255, 255, 255)):
 
 
 def session_target(config, session_id):
+    """แบ่งจำนวนคลิปเป้าหมายต่อคน/คลาสให้แต่ละ session อย่างสมดุล."""
     sessions = config.collection.sessions
     target = config.collection.target_clips_per_signer_per_class
     base, remainder = divmod(target, len(sessions))
@@ -58,6 +62,7 @@ def session_target(config, session_id):
 
 
 def count_usable(records, gesture_name, signer_id, session_id):
+    """นับคลิปที่ยังใช้ได้และตรงกับชุดเก็บข้อมูลปัจจุบัน."""
     return sum(
         1
         for item in records
@@ -69,6 +74,7 @@ def count_usable(records, gesture_name, signer_id, session_id):
 
 
 def countdown(camera, gesture_name, seconds):
+    """แสดงชื่อท่าและเวลานับถอยหลัง; คืน False เมื่อผู้ใช้กดยกเลิก."""
     for remaining in range(seconds, 0, -1):
         started = time.monotonic()
         while time.monotonic() - started < 1.0:
@@ -88,6 +94,7 @@ def countdown(camera, gesture_name, seconds):
 
 
 def collect_clip(camera, detector, sequence_length, save_preview):
+    """เก็บ landmark sequence และภาพ preview เสริมจนครบจำนวนเฟรม."""
     features_list = []
     preview_frames = []
     while len(features_list) < sequence_length:
@@ -128,6 +135,7 @@ def collect_clip(camera, detector, sequence_length, save_preview):
 
 
 def save_sequence(path, sequence):
+    """เขียนอาร์เรย์ landmark ผ่านไฟล์ชั่วคราวก่อนแทนไฟล์จริง."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp.npy")
     np.save(temporary, sequence.astype(np.float32))
@@ -135,6 +143,7 @@ def save_sequence(path, sequence):
 
 
 def save_preview(path, frames, fps=30.0):
+    """เข้ารหัสเฟรมตัวอย่างเป็น MP4 เพื่อใช้ตรวจคุณภาพภายหลัง."""
     if not frames:
         return False
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -152,6 +161,7 @@ def save_preview(path, frames, fps=30.0):
 
 
 def reference_for(gesture_name):
+    """ค้นหา URL อ้างอิงของท่าจากแผนคำศัพท์."""
     if gesture_name == "neutral":
         return ""
     planned = GestureCatalog().load_planned()
@@ -160,6 +170,7 @@ def reference_for(gesture_name):
 
 
 def main():
+    """ตรวจ argument เปิดกล้อง และบันทึก sequence/preview/metadata ทีละคลิป."""
     config = load_training_config()
     parser = argparse.ArgumentParser(description="Collect HandVox Dataset V2 clips")
     parser.add_argument("--signer", required=True, choices=config.collection.signers)

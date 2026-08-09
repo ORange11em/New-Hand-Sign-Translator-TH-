@@ -1,4 +1,4 @@
-"""Command-line entry point for the reproducible HandVox V2 workflow."""
+"""คำสั่ง CLI สำหรับตรวจความพร้อม เทรน ดูผล และติดตั้งโมเดล Dataset V2."""
 
 import argparse
 from pathlib import Path
@@ -18,6 +18,7 @@ STATUS_LABELS = {"ok": "พร้อม", "warning": "ควรตรวจ", "e
 
 
 def print_preflight(report):
+    """พิมพ์รายงานความพร้อมแบบสั้นสำหรับอ่านใน Command Prompt."""
     print("=" * 68)
     print("HandVox V2 - Training Preflight")
     print("=" * 68)
@@ -30,6 +31,7 @@ def print_preflight(report):
 
 
 def command_status():
+    """ตรวจและบันทึก preflight_latest.json โดยไม่เริ่มเทรน."""
     report = preflight()
     EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
     output = EXPERIMENTS_DIR / "preflight_latest.json"
@@ -40,6 +42,7 @@ def command_status():
 
 
 def command_train():
+    """หยุดเมื่อข้อมูลไม่พร้อม มิฉะนั้นสร้าง experiment และรายงานใหม่."""
     report = preflight()
     EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
     save_preflight_report(report, EXPERIMENTS_DIR / "preflight_latest.json")
@@ -59,6 +62,7 @@ def command_train():
 
 
 def command_list():
+    """แสดง Accuracy, Macro F1 และสถานะผ่านของ experiment ที่มีอยู่."""
     experiments = list_experiments()
     if not experiments:
         print("ยังไม่มีผลการทดลอง")
@@ -73,6 +77,7 @@ def command_list():
 
 
 def command_activate(experiment, confirmed):
+    """ขอยืนยันก่อนสำรองโมเดลเดิมและติดตั้ง experiment ที่ผ่านเกณฑ์."""
     directory = Path(experiment)
     if not directory.is_absolute():
         directory = EXPERIMENTS_DIR / directory
@@ -89,6 +94,7 @@ def command_activate(experiment, confirmed):
 
 
 def main():
+    """แยกคำสั่ง status/train/list/activate และแปลงข้อผิดพลาดเป็น exit code."""
     parser = argparse.ArgumentParser(description="HandVox V2 training workflow")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("status", help="ตรวจความพร้อมโดยไม่เทรน")
@@ -113,4 +119,3 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

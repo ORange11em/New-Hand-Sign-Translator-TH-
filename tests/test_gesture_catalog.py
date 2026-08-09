@@ -1,3 +1,5 @@
+"""ทดสอบการเพิ่ม ลบ ตรวจ URL และป้องกันชื่อคำศัพท์ซ้ำ."""
+
 import json
 from pathlib import Path
 import tempfile
@@ -45,4 +47,3 @@ class GestureCatalogTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

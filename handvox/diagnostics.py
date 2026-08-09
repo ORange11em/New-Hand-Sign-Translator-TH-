@@ -1,4 +1,4 @@
-"""Read-only diagnostics for the desktop dashboard. Never opens the camera."""
+"""ตรวจความพร้อมสำหรับหน้า Dashboard แบบอ่านอย่างเดียวและไม่เปิดกล้อง."""
 
 from dataclasses import dataclass
 import json
@@ -14,12 +14,15 @@ from handvox.paths import LABEL_FILE, LEGACY_DATA_FILE, MODEL_FILE, MODEL_MANIFE
 
 @dataclass(frozen=True)
 class DiagnosticItem:
+    """ผลตรวจหนึ่งแถวที่หน้า Dashboard นำไปกำหนดข้อความและสีสถานะ."""
+
     name: str
     status: str
     message: str
 
 
 def run_diagnostics():
+    """ตรวจ Python โมเดล ข้อมูลเดิม คำศัพท์ และ Dataset V2 โดยไม่เปลี่ยนไฟล์."""
     results = []
     supported = sys.version_info[:2] in ((3, 10), (3, 11))
     results.append(

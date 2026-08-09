@@ -1,4 +1,8 @@
-"""Shared upper-body and two-hand features for HandVox."""
+"""แปลง landmark ช่วงบนและมือสองข้างเป็นเวกเตอร์คุณลักษณะของ HandVox.
+
+ทั้งขั้นเก็บข้อมูลและตรวจจับต้องเรียกไฟล์นี้ร่วมกัน เพื่อให้จำนวนและลำดับ
+คุณลักษณะตรงกันเสมอ
+"""
 
 import math
 
@@ -10,6 +14,7 @@ FEATURE_COUNT = (len(POSE_IDS) + HAND_POINTS * 2) * 3
 
 
 def feature_columns():
+    """คืนชื่อคอลัมน์ 171 ค่าในลำดับเดียวกับ extract_features."""
     columns = [f"pose_{index}_{axis}" for index in POSE_IDS for axis in "xyz"]
     columns += [f"left_hand_{index}_{axis}" for index in range(HAND_POINTS) for axis in "xyz"]
     columns += [f"right_hand_{index}_{axis}" for index in range(HAND_POINTS) for axis in "xyz"]
@@ -17,6 +22,7 @@ def feature_columns():
 
 
 def _normalizer(pose_landmarks):
+    """ใช้กึ่งกลางไหล่เป็นจุดอ้างอิงและระยะไหล่เป็นสเกล."""
     left_shoulder = pose_landmarks.landmark[11]
     right_shoulder = pose_landmarks.landmark[12]
     center = (
@@ -33,6 +39,7 @@ def _normalizer(pose_landmarks):
 
 
 def _encode(points, center, scale, expected_count):
+    """แปลง landmark เป็น xyz สัมพัทธ์ หรือเติมศูนย์เมื่อไม่พบมือข้างนั้น."""
     if points is None:
         return [0.0] * (expected_count * 3)
     values = []
@@ -46,7 +53,7 @@ def _encode(points, center, scale, expected_count):
 
 
 def extract_features(results):
-    """Return 171 normalized features, or None until pose and a hand are visible."""
+    """คืน 171 คุณลักษณะที่ normalize แล้ว หรือ None เมื่อยังเห็นร่างกาย/มือไม่พอ."""
     pose = results.pose_landmarks
     left_hand = results.left_hand_landmarks
     right_hand = results.right_hand_landmarks
@@ -63,7 +70,7 @@ def extract_features(results):
 
 
 def upper_body_bbox(results, width, height):
-    """Bounding box around the detected upper body and hands for display."""
+    """คำนวณกรอบครอบช่วงบนและมือสำหรับวาดบนภาพกล้อง."""
     points = []
     if results.pose_landmarks:
         points.extend(results.pose_landmarks.landmark[index] for index in POSE_IDS)

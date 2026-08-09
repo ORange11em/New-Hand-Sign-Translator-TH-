@@ -1,4 +1,4 @@
-"""Persistent user settings shared by the GUI and detector."""
+"""ตรวจสอบและบันทึกการตั้งค่าที่ GUI กับตัวตรวจจับใช้ร่วมกัน."""
 
 from dataclasses import asdict, dataclass, fields
 import json
@@ -10,6 +10,8 @@ from handvox.paths import SETTINGS_FILE
 
 @dataclass
 class AppSettings:
+    """ค่าปรับพฤติกรรมกล้อง การยืนยันผล เสียง ประโยค และประวัติ."""
+
     camera_index: int = 0
     min_confidence: float = 0.65
     confirm_frames: int = 4
@@ -24,6 +26,7 @@ class AppSettings:
     history_limit: int = 100
 
     def validate(self):
+        """ตรวจชนิดและช่วงค่าทั้งหมดก่อนให้ส่วนอื่นนำไปใช้."""
         if not isinstance(self.camera_index, int) or not 0 <= self.camera_index <= 20:
             raise ConfigurationError("หมายเลขกล้องต้องอยู่ระหว่าง 0 ถึง 20")
         if not 0.05 <= float(self.min_confidence) <= 1.0:
@@ -52,6 +55,7 @@ class AppSettings:
 
     @classmethod
     def from_dict(cls, data):
+        """สร้าง settings จาก JSON โดยข้าม key รุ่นใหม่ที่โปรแกรมยังไม่รู้จัก."""
         if not isinstance(data, dict):
             raise ConfigurationError("settings.json ต้องเก็บข้อมูลแบบ object")
         allowed = {field.name for field in fields(cls)}
@@ -63,11 +67,14 @@ class AppSettings:
 
 
 class SettingsStore:
+    """อ่านและเขียน settings.json ด้วยการแทนไฟล์แบบ atomic."""
+
     def __init__(self, path=SETTINGS_FILE):
         self.path = Path(path)
         self.last_error = None
 
     def load(self):
+        """โหลดค่าที่บันทึกไว้ หรือคืนค่าเริ่มต้นเมื่อยังไม่มีไฟล์."""
         if not self.path.exists():
             return AppSettings()
         try:
@@ -77,6 +84,7 @@ class SettingsStore:
         return AppSettings.from_dict(data)
 
     def load_or_default(self):
+        """โหลดแบบไม่ทำให้แอปล้ม และเก็บข้อความผิดพลาดไว้ใน last_error."""
         self.last_error = None
         try:
             return self.load()
@@ -85,6 +93,7 @@ class SettingsStore:
             return AppSettings()
 
     def save(self, settings):
+        """ตรวจค่าแล้วเขียนไฟล์ชั่วคราวก่อนแทนไฟล์จริง ป้องกันไฟล์ขาดกลางทาง."""
         settings.validate()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix(self.path.suffix + ".tmp")
@@ -95,6 +104,7 @@ class SettingsStore:
         temporary.replace(self.path)
 
     def reset(self):
+        """คืนค่าเริ่มต้นพร้อมบันทึกลงดิสก์."""
         settings = AppSettings()
         self.save(settings)
         return settings

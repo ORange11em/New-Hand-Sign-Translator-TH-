@@ -1,4 +1,4 @@
-"""Train HandVox on short motion clips using a flattened sequence SVM."""
+"""ฝึกโมเดล SVM รุ่นเดิมจากคลิปสั้นที่เรียงเป็นเวกเตอร์หนึ่งมิติ."""
 
 import pickle
 from pathlib import Path
@@ -19,6 +19,7 @@ MODEL_MANIFEST_FILE = ROOT / "model_manifest.json"
 
 
 def main():
+    """ตรวจ Dataset แบ่ง train/test ฝึก SVC และบันทึกโมเดลรุ่นเดิม."""
     if MODEL_MANIFEST_FILE.exists():
         print("ตรวจพบโมเดล Dataset V2 ที่ติดตั้งแล้ว")
         print("เพื่อป้องกันการเขียนทับ กรุณาเทรนจากหน้า 'เตรียมเทรน' หรือ training_cli.py")
@@ -43,6 +44,7 @@ def main():
         print("คลิปข้อมูลยังไม่ครบ 30 คลิปต่อท่า:", ", ".join(incomplete))
         return 1
 
+    # แปลงชื่อภาษาไทยเป็นเลขคลาส แล้วแผ่ 30 เฟรมเป็นเวกเตอร์ต่อคลิป
     encoder = LabelEncoder()
     target = encoder.fit_transform(labels)
     features = clips.reshape(len(clips), -1)
@@ -53,6 +55,7 @@ def main():
     classifier.fit(train_x, train_y)
     accuracy = float((classifier.predict(test_x) == test_y).mean())
 
+    # บันทึกทั้ง classifier และตัวถอดชื่อคลาส เพราะตัวตรวจจับต้องใช้คู่กัน
     with MODEL_FILE.open("wb") as file:
         pickle.dump(classifier, file)
     with LABEL_FILE.open("wb") as file:

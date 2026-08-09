@@ -15,7 +15,7 @@ GESTURE_COLORS = {}
 
 
 def _load_custom_gestures():
-    """Load gestures added through the guided add-gesture workflow."""
+    """โหลดท่าที่เพิ่มผ่าน workflow รุ่นเดิม พร้อมข้ามรายการที่ไม่ถูกต้อง."""
     custom_file = Path(__file__).with_name("custom_gestures.json")
     if not custom_file.exists():
         return

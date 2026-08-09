@@ -1,3 +1,5 @@
+"""ทดสอบการบันทึก จำกัดจำนวน ลบ และล้างประวัติประโยค."""
+
 from pathlib import Path
 import tempfile
 import unittest
@@ -28,4 +30,3 @@ class HistoryStoreTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

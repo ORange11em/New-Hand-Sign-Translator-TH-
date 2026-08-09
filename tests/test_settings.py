@@ -1,3 +1,5 @@
+"""ทดสอบการตรวจค่า บันทึก โหลด และ fallback ของ settings."""
+
 import json
 from pathlib import Path
 import tempfile

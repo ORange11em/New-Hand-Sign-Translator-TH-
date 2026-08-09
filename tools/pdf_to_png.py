@@ -1,4 +1,4 @@
-"""Render every PDF page to a numbered PNG using PyMuPDF."""
+"""แปลงทุกหน้า PDF เป็น PNG เรียงหมายเลขด้วย PyMuPDF สำหรับตรวจภาพ."""
 
 from __future__ import annotations
 

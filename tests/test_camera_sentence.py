@@ -1,3 +1,5 @@
+"""ทดสอบตัวจับเวลาค้างท่าโดยไม่ใช้กล้องจริง."""
+
 import unittest
 
 from handvox.camera_sentence import GestureHoldTimer

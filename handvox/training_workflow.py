@@ -1,4 +1,8 @@
-"""Preflight, evaluate, report, and safely activate HandVox V2 models."""
+"""ตรวจความพร้อม เทรน วัดผล สร้างรายงาน และติดตั้งโมเดล V2 อย่างปลอดภัย.
+
+ไฟล์นี้ไม่ติดตั้งโมเดลทันทีหลังเทรน แต่สร้าง experiment แยกแต่ละรอบก่อน
+และยอมให้เปิดใช้งานเฉพาะผลที่ผ่านเกณฑ์ใน training_config.json
+"""
 
 from __future__ import annotations
 
@@ -34,6 +38,8 @@ from handvox.training_config import TrainingConfig, load_training_config
 
 @dataclass(frozen=True)
 class ReadinessItem:
+    """ผลตรวจหนึ่งเงื่อนไข พร้อมระดับสถานะ รหัส และข้อความสำหรับผู้ใช้."""
+
     status: str
     code: str
     message: str
@@ -41,6 +47,8 @@ class ReadinessItem:
 
 @dataclass(frozen=True)
 class ReadinessReport:
+    """ภาพรวม preflight รวมจำนวนคลิป รายการปัญหา และ inventory."""
+
     ready: bool
     generated_at: str
     accepted_clips: int
@@ -49,6 +57,7 @@ class ReadinessReport:
     inventory: tuple[dict, ...]
 
     def to_dict(self):
+        """แปลง dataclass ซ้อนเป็นข้อมูลที่เขียน JSON ได้."""
         return {
             "ready": self.ready,
             "generated_at": self.generated_at,
@@ -59,7 +68,9 @@ class ReadinessReport:
         }
 
 
+# ── ขั้นที่ 1: ตรวจข้อมูลก่อนเทรน ──────────────────────────
 def _reference_items(config: TrainingConfig):
+    """ตรวจว่าท่าใหม่มีแหล่งอ้างอิงและผ่านการยืนยันรูปแบบท่าแล้ว."""
     active_names = {item.name for item in GestureCatalog().load_active()}
     planned = {item.name: item for item in GestureCatalog().load_planned()}
     issues = []
@@ -91,6 +102,7 @@ def _reference_items(config: TrainingConfig):
 
 
 def _validate_sequence_files(config, store, records):
+    """ตรวจว่า accepted clips มีไฟล์จริง shape ถูก และไม่มี NaN/Infinity."""
     invalid = []
     missing = []
     accepted = [record for record in records if record.quality == "accepted"]
@@ -136,6 +148,7 @@ def _validate_sequence_files(config, store, records):
 
 
 def preflight(config=None, store=None):
+    """รวมทุกกฎความพร้อม และไม่เริ่มเทรนหรือเปลี่ยนโมเดล."""
     config = config or load_training_config()
     store = store or DatasetV2Store()
     records = store.records()
@@ -244,6 +257,7 @@ def preflight(config=None, store=None):
 
 
 def save_preflight_report(report, path):
+    """เขียนผล preflight เป็น JSON สำหรับ GUI และหลักฐานในอนาคต."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -252,7 +266,9 @@ def save_preflight_report(report, path):
     )
 
 
+# ── ขั้นที่ 2: โหลดข้อมูลและคำนวณตัวชี้วัด ──────────────────
 def _dataset_fingerprint(store, records):
+    """สร้าง SHA-256 จาก metadata และไฟล์ sequence เพื่อระบุ Dataset รุ่นนี้."""
     digest = hashlib.sha256()
     for record in sorted(records, key=lambda item: item.clip_id):
         digest.update(
@@ -268,6 +284,7 @@ def _dataset_fingerprint(store, records):
 
 
 def _load_accepted_arrays(config, store):
+    """โหลดเฉพาะคลิป accepted แล้วคืน features, labels, signers และ sessions."""
     records = [
         item
         for item in store.records()
@@ -296,6 +313,7 @@ def _load_accepted_arrays(config, store):
 
 
 def _metric_payload(true_values, predictions, class_ids, class_names):
+    """คำนวณ Accuracy, Precision, Recall, F1 และ Confusion Matrix."""
     from sklearn.metrics import (
         accuracy_score,
         confusion_matrix,
@@ -339,7 +357,9 @@ def _metric_payload(true_values, predictions, class_ids, class_names):
     }
 
 
+# ── ขั้นที่ 3: ส่งออกตาราง กราฟ และข้อมูลเวอร์ชัน ───────────
 def _write_csv(path, fieldnames, rows):
+    """เขียน CSV แบบ UTF-8 with BOM เพื่อเปิดภาษาไทยใน Excel ได้ง่าย."""
     with Path(path).open("w", encoding="utf-8-sig", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
@@ -347,6 +367,7 @@ def _write_csv(path, fieldnames, rows):
 
 
 def _write_confusion_csv(path, class_names, matrix):
+    """แปลง Confusion Matrix เป็นตารางที่มีชื่อคลาสทั้งแถวและคอลัมน์."""
     rows = []
     for true_name, values in zip(class_names, matrix):
         row = {"actual\\predicted": true_name}
@@ -356,6 +377,7 @@ def _write_confusion_csv(path, class_names, matrix):
 
 
 def _write_plots(experiment_dir, class_names, metrics):
+    """สร้างภาพ Confusion Matrix และกราฟ F1 แยกคลาสโดยไม่เปิดหน้าต่าง."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -394,6 +416,7 @@ def _write_plots(experiment_dir, class_names, metrics):
 
 
 def _version_info():
+    """บันทึกเวอร์ชัน Python/ไลบรารี/ระบบและ git commit เพื่อทำซ้ำผล."""
     import sklearn
 
     try:
@@ -418,6 +441,7 @@ def _version_info():
 
 
 def _manifest(config, metrics, experiment_id):
+    """สร้างรายการท่าที่โมเดลใหม่ใช้สำหรับติดตั้งและตัวตรวจจับ."""
     active = {item.name: item for item in GestureCatalog().load_active()}
     planned = {item.name: item for item in GestureCatalog().load_planned()}
     default_colors = (
@@ -450,6 +474,7 @@ def _manifest(config, metrics, experiment_id):
 
 
 def _acceptance_result(config, metrics):
+    """เทียบผลวัดกับเกณฑ์รวม รายคลาส คำสำคัญ และ neutral."""
     recalls = {row["class_name"]: row["recall"] for row in metrics["per_class"]}
     visible_recalls = [recalls[name] for name in config.visible_gestures]
     critical_recalls = [recalls[name] for name in config.critical_gestures]
@@ -475,7 +500,9 @@ def _acceptance_result(config, metrics):
     return all(checks.values()), checks, neutral_false_positive_rate
 
 
+# ── ขั้นที่ 4: เทรนแบบข้ามผู้ทำและสร้าง experiment ──────────
 def train_and_evaluate(config=None, store=None, output_root=EXPERIMENTS_DIR):
+    """ทำ Leave-One-Signer-Out สอง fold ฝึก final model และสร้างไฟล์รายงาน."""
     from sklearn.preprocessing import LabelEncoder
     from sklearn.svm import SVC
 
@@ -638,7 +665,9 @@ def train_and_evaluate(config=None, store=None, output_root=EXPERIMENTS_DIR):
     return experiment_dir, metrics_payload
 
 
+# ── ขั้นที่ 5: รายงาน รายการทดลอง และการติดตั้ง ─────────────
 def _write_markdown_report(experiment_dir, payload, config):
+    """สร้างรายงาน Markdown ที่นำค่าไปอ้างอิงในเอกสารโครงงานได้."""
     aggregate = payload["aggregate"]
     result = "ผ่าน" if aggregate["passed"] else "ยังไม่ผ่าน"
     lines = [
@@ -700,6 +729,7 @@ def _write_markdown_report(experiment_dir, payload, config):
 
 
 def list_experiments(root=EXPERIMENTS_DIR):
+    """อ่าน experiment ที่สมบูรณ์และคืนรายการเรียงจากใหม่ไปเก่า."""
     root = Path(root)
     if not root.exists():
         return []
@@ -727,6 +757,7 @@ def list_experiments(root=EXPERIMENTS_DIR):
 
 
 def _write_experiment_index(root):
+    """สร้าง CSV ดัชนีรวมเพื่อเปรียบเทียบผลทุกครั้งได้ในไฟล์เดียว."""
     rows = []
     for item in list_experiments(root):
         rows.append(
@@ -750,6 +781,7 @@ def _write_experiment_index(root):
 
 
 def activate_experiment(experiment_dir):
+    """ตรวจผล สำรองของเดิม แล้วติดตั้ง model/labels/manifest แบบ staged."""
     experiment_dir = Path(experiment_dir).resolve()
     try:
         experiment_dir.relative_to(EXPERIMENTS_DIR.resolve())

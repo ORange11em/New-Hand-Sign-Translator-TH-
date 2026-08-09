@@ -1,4 +1,4 @@
-"""Remove a custom gesture and its recorded motion clips."""
+"""สำรองแล้วลบท่าที่ผู้ใช้เพิ่ม รวมทั้งคลิปของท่านั้นจาก Dataset รุ่นเดิม."""
 
 import json
 import shutil
@@ -16,6 +16,7 @@ MODEL_MANIFEST_FILE = ROOT / "model_manifest.json"
 
 
 def read_custom_gestures():
+    """โหลดรายการท่าที่ผู้ใช้เพิ่มใน workflow รุ่นเดิม."""
     if not CUSTOM_FILE.exists():
         return []
     try:
@@ -26,10 +27,12 @@ def read_custom_gestures():
 
 
 def save_custom_gestures(entries):
+    """เขียนรายการท่าหลังตัดรายการที่เลือกออก."""
     CUSTOM_FILE.write_text(json.dumps(entries, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def backup():
+    """คัดลอกรายการท่าและ Dataset ไปโฟลเดอร์สำรองก่อนลบ."""
     folder = ROOT / "gesture_backups" / ("remove_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
     folder.mkdir(parents=True, exist_ok=False)
     for source in (CUSTOM_FILE, DATA_FILE):
@@ -39,6 +42,7 @@ def backup():
 
 
 def main():
+    """ให้ผู้ใช้เลือก ยืนยัน สำรอง ลบท่า และฝึกใหม่เมื่อคลาสยังเพียงพอ."""
     if MODEL_MANIFEST_FILE.exists():
         print("ไม่อนุญาตให้ลบท่าด้วย workflow เดิมหลังติดตั้งโมเดล Dataset V2")
         print("กรุณาสร้าง training_config และทดลองรุ่นใหม่แทน")

@@ -1,4 +1,4 @@
-"""Validated configuration for the reproducible HandVox V2 workflow."""
+"""โหลดและตรวจ training_config.json เพื่อให้การทดลอง Dataset V2 ทำซ้ำได้."""
 
 from dataclasses import dataclass
 import json
@@ -10,6 +10,8 @@ from handvox.paths import TRAINING_CONFIG_FILE
 
 @dataclass(frozen=True)
 class CollectionConfig:
+    """แผนผู้ทำท่า เซสชัน จำนวนคลิป และรูปแบบลำดับเฟรม."""
+
     signers: tuple[str, ...]
     sessions: tuple[str, ...]
     target_clips_per_signer_per_class: int
@@ -20,6 +22,8 @@ class CollectionConfig:
 
 @dataclass(frozen=True)
 class TrainingOptions:
+    """ชื่ออัลกอริทึม พารามิเตอร์ วิธีแบ่งชุดทดสอบ และ seed."""
+
     algorithm: str
     parameters: dict
     evaluation_strategy: str
@@ -28,6 +32,8 @@ class TrainingOptions:
 
 @dataclass(frozen=True)
 class AcceptanceCriteria:
+    """เกณฑ์ขั้นต่ำที่ experiment ต้องผ่านก่อนอนุญาตให้ติดตั้ง."""
+
     minimum_accuracy: float
     minimum_macro_f1: float
     minimum_class_recall: float
@@ -37,6 +43,8 @@ class AcceptanceCriteria:
 
 @dataclass(frozen=True)
 class TrainingConfig:
+    """ขอบเขตคำศัพท์ 16 ท่า คลาสภายใน และค่ากระบวนการทั้งหมด."""
+
     schema_version: int
     project_name: str
     visible_gestures: tuple[str, ...]
@@ -59,6 +67,7 @@ class TrainingConfig:
         )
 
     def validate(self):
+        """ตรวจความสอดคล้องของแผนก่อนอ่าน Dataset หรือเริ่มเทรน."""
         if self.schema_version != 1:
             raise ConfigurationError("training_config schema_version ต้องเป็น 1")
         if len(self.visible_gestures) != 16:
@@ -95,6 +104,7 @@ class TrainingConfig:
 
 
 def _nonempty_strings(values, field_name):
+    """แปลง JSON list เป็น tuple ของข้อความที่ไม่มีค่าว่าง."""
     if not isinstance(values, list):
         raise ConfigurationError(f"{field_name} ต้องเป็นรายการ")
     result = tuple(str(value).strip() for value in values)
@@ -104,6 +114,7 @@ def _nonempty_strings(values, field_name):
 
 
 def load_training_config(path=TRAINING_CONFIG_FILE):
+    """โหลด JSON เป็น dataclass หลายชั้น แล้วตรวจแผนทั้งชุด."""
     path = Path(path)
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))

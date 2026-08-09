@@ -1,4 +1,4 @@
-"""Archive all active gestures and start an empty upper-body dataset."""
+"""สำรองท่าและโมเดลรุ่นเดิมทั้งหมด ก่อนเริ่ม Dataset เปล่าใหม่."""
 
 import argparse
 import shutil
@@ -20,6 +20,7 @@ ACTIVE_FILES = (
 
 
 def main():
+    """ต้องได้รับ --confirm จึงสำรองไฟล์สำคัญและสร้างรายการท่าว่าง."""
     parser = argparse.ArgumentParser(description="Reset all active HandVox gestures")
     parser.add_argument("--confirm", action="store_true")
     args = parser.parse_args()

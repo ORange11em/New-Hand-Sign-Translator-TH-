@@ -1,3 +1,5 @@
+"""ทดสอบการเพิ่ม ลบ ล้าง แทนข้อความ และควบคุมคำซ้ำ."""
+
 import unittest
 
 from handvox.sentence import SentenceBuilder
@@ -28,4 +30,3 @@ class SentenceBuilderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

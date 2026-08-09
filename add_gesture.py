@@ -1,4 +1,4 @@
-"""Guided one-pass workflow for adding a HandVox gesture."""
+"""ขั้นตอนแบบมีคำแนะนำสำหรับเพิ่มชื่อท่า เก็บคลิป และฝึกโมเดลรุ่นเดิม."""
 
 import json
 import subprocess
@@ -20,10 +20,12 @@ COLORS = [
 
 
 def sample_count(name):
+    """คืนจำนวนคลิปที่มีอยู่ของท่าที่ระบุ."""
     return count_clips(name)
 
 
 def read_custom_gestures():
+    """อ่านรายการท่าเดิม และคืน list ว่างเมื่อยังไม่มีหรือไฟล์เสีย."""
     if not CUSTOM_FILE.exists():
         return []
     try:
@@ -34,6 +36,7 @@ def read_custom_gestures():
 
 
 def save_custom_gestures(entries):
+    """บันทึกรายการท่าผ่านไฟล์ชั่วคราวเพื่อไม่ให้ไฟล์จริงขาดกลางทาง."""
     temporary_file = CUSTOM_FILE.with_suffix(".tmp")
     temporary_file.write_text(
         json.dumps(entries, ensure_ascii=False, indent=2) + "\n",
@@ -43,6 +46,7 @@ def save_custom_gestures(entries):
 
 
 def ask_for_gesture():
+    """รับชื่อ/คำอธิบาย และบอกว่าท่านี้ยังต้องเก็บคลิปเพิ่มหรือไม่."""
     print("=" * 54)
     print("       HandVox - เพิ่มท่าใหม่แบบครั้งเดียว")
     print("=" * 54)
@@ -79,6 +83,7 @@ def ask_for_gesture():
 
 
 def main():
+    """ควบคุมลำดับเพิ่มท่า -> เก็บคลิป -> ฝึกโมเดลรุ่นเดิม."""
     if MODEL_MANIFEST_FILE.exists():
         print("ไม่อนุญาตให้เพิ่มท่าด้วย workflow เดิมหลังติดตั้งโมเดล Dataset V2")
         print("กรุณาใช้หน้า 'คำศัพท์' และ 'เตรียมเทรน' ใน HandVox")

@@ -1,4 +1,4 @@
-"""Metadata-first storage helpers for the future HandVox Dataset V2."""
+"""จัดเก็บและตรวจ metadata ของ Dataset V2 โดยให้ข้อมูลตรวจสอบย้อนหลังได้."""
 
 from collections import Counter
 from dataclasses import asdict, dataclass
@@ -16,6 +16,8 @@ LIGHTING_VALUES = ("unknown", "bright", "normal", "dim", "backlit")
 
 @dataclass
 class ClipMetadata:
+    """metadata หนึ่งคลิปที่ระบุท่า ผู้ทำ เซสชัน ไฟล์ และสถานะคุณภาพ."""
+
     clip_id: str
     gesture_name: str
     signer_id: str
@@ -34,6 +36,7 @@ class ClipMetadata:
     notes: str = ""
 
     def validate(self):
+        """ตรวจฟิลด์บังคับ ค่า enum เวลา และป้องกัน path ออกจาก Dataset."""
         for name in ("clip_id", "gesture_name", "signer_id", "session_id", "recorded_at"):
             if not str(getattr(self, name)).strip():
                 raise DataFileError(f"{name} ห้ามว่าง")
@@ -67,6 +70,7 @@ class ClipMetadata:
 
     @classmethod
     def from_dict(cls, data):
+        """สร้าง metadata จากหนึ่งบรรทัด JSON และแปลงข้อผิดพลาดให้อ่านง่าย."""
         try:
             return cls(**data).validate()
         except (TypeError, KeyError) as error:
@@ -74,17 +78,21 @@ class ClipMetadata:
 
 
 class DatasetV2Store:
+    """ดูแลโฟลเดอร์ clips และ manifest แบบ JSON Lines ของ Dataset V2."""
+
     def __init__(self, root=DATASET_V2_DIR):
         self.root = Path(root)
         self.manifest = self.root / "metadata.jsonl"
         self.clips_dir = self.root / "clips"
 
     def initialize(self):
+        """สร้างโครงสร้างขั้นต่ำโดยไม่ลบข้อมูลเดิม."""
         self.clips_dir.mkdir(parents=True, exist_ok=True)
         if not self.manifest.exists():
             self.manifest.write_text("", encoding="utf-8")
 
     def append(self, metadata):
+        """ต่อท้าย metadata หนึ่งคลิปหลังตรวจว่า clip_id ไม่ซ้ำ."""
         metadata.validate()
         self.initialize()
         if any(item.clip_id == metadata.clip_id for item in self.records()):
@@ -93,6 +101,7 @@ class DatasetV2Store:
             file.write(json.dumps(asdict(metadata), ensure_ascii=False) + "\n")
 
     def save_records(self, records):
+        """เขียน metadata ทั้งชุดใหม่ผ่านไฟล์ชั่วคราวแบบ atomic."""
         validated = [record.validate() for record in records]
         ids = [record.clip_id for record in validated]
         if len(ids) != len(set(ids)):
@@ -107,6 +116,7 @@ class DatasetV2Store:
         temporary.replace(self.manifest)
 
     def set_quality(self, clip_ids, quality):
+        """เปลี่ยน pending/accepted/rejected ให้คลิปที่เลือกและคืนจำนวนที่แก้."""
         if quality not in QUALITY_VALUES:
             raise DataFileError(f"quality ต้องเป็นหนึ่งใน {', '.join(QUALITY_VALUES)}")
         selected = set(clip_ids)
@@ -123,6 +133,7 @@ class DatasetV2Store:
         return updated
 
     def resolve_data_path(self, relative_path):
+        """แปลง relative path เป็น path จริงโดยห้ามหลุดออกจาก Dataset."""
         path = Path(relative_path)
         if path.is_absolute() or ".." in path.parts:
             raise DataFileError("path ต้องอยู่ภายใน Dataset V2")
@@ -134,6 +145,7 @@ class DatasetV2Store:
         return resolved
 
     def next_clip_number(self, gesture_name, signer_id, session_id):
+        """หาเลขคลิปถัดไปภายในชุดท่า ผู้ทำ และเซสชันเดียวกัน."""
         numbers = [
             item.clip_number
             for item in self.records()
@@ -144,6 +156,7 @@ class DatasetV2Store:
         return max(numbers, default=0) + 1
 
     def records(self):
+        """อ่าน manifest ทุกบรรทัดและรายงานเลขบรรทัดเมื่อข้อมูลเสีย."""
         if not self.manifest.exists():
             return []
         records = []
@@ -159,6 +172,7 @@ class DatasetV2Store:
         return records
 
     def summary(self):
+        """สรุปจำนวนคลิป ท่า ผู้ทำ เซสชัน และสถานะคุณภาพสำหรับ Dashboard."""
         records = self.records()
         return {
             "clips": len(records),
@@ -171,6 +185,7 @@ class DatasetV2Store:
         }
 
     def inventory(self, classes=(), signers=()):
+        """สร้างตารางจำนวนคลิปแยกตามคลาสและผู้ทำสำหรับ preflight."""
         records = self.records()
         class_names = tuple(classes) or tuple(
             sorted({record.gesture_name for record in records})

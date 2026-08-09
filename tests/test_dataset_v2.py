@@ -1,3 +1,5 @@
+"""ทดสอบการตรวจ metadata ความปลอดภัยของ path และ inventory Dataset V2."""
+
 from datetime import datetime, timezone
 from pathlib import Path
 import tempfile

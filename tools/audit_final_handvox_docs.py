@@ -1,3 +1,5 @@
+"""ตรวจเอกสาร Word ฉบับสุดท้ายว่ามีหัวข้อ รูป ตาราง และข้อความสำคัญครบ."""
+
 from __future__ import annotations
 
 from pathlib import Path

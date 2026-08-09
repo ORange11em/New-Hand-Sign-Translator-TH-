@@ -1,4 +1,4 @@
-"""Central filesystem locations used by HandVox."""
+"""รวมตำแหน่งไฟล์สำคัญไว้จุดเดียว เพื่อไม่ให้แต่ละโมดูลสร้าง path ต่างกัน."""
 
 from pathlib import Path
 

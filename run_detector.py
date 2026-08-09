@@ -1,3 +1,10 @@
+"""เปิดกล้อง ตรวจจับท่าจากโมเดล และสะสมคำเป็นประโยคแบบเรียลไทม์.
+
+ลำดับหลักคือ อ่านภาพจากกล้อง -> ดึง landmark -> สะสมลำดับการเคลื่อนไหว
+-> ให้โมเดลทำนาย -> ยืนยันผลด้วย state machine -> เพิ่มคำ/อ่านเสียง/บันทึกประโยค
+หน้าต่างนี้รองรับทั้งปุ่มบนภาพและคีย์ลัด โดยไม่แก้ไขหรือเทรนโมเดล
+"""
+
 # ============================================================
 # STEP 3 : run_detector.py  (+ TTS เสียง + Sentence Builder จากกล้อง)
 # วิธีใช้ : python run_detector.py
@@ -45,6 +52,7 @@ if settings_store.last_error:
 
 # ── ฟอนต์ไทย ──────────────────────────────────────────────
 def load_font(size):
+    """โหลดฟอนต์ภาษาไทยที่มีใน Windows หรือ fallback เป็นฟอนต์เริ่มต้น."""
     for fp in ["C:/Windows/Fonts/THSarabunNew.ttf",
                "C:/Windows/Fonts/tahoma.ttf",
                "C:/Windows/Fonts/arial.ttf"]:
@@ -58,12 +66,14 @@ fS = load_font(round(20 * settings.font_scale))
 fXL = load_font(round(58 * settings.font_scale))
 
 def putThai(img, text, pos, font, color=(255,255,255)):
+    """วาดข้อความไทยที่พิกัดซ้ายบนบนภาพ BGR."""
     pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     d   = ImageDraw.Draw(pil)
     d.text(pos, text, font=font, fill=(color[2],color[1],color[0]))
     return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
 def putThaiC(img, text, cx, y, font, color=(255,255,255)):
+    """วาดข้อความไทยโดยจัดกึ่งกลางรอบพิกัด cx."""
     pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
     d   = ImageDraw.Draw(pil)
     bb  = d.textbbox((0,0), text, font=font)
@@ -72,6 +82,7 @@ def putThaiC(img, text, cx, y, font, color=(255,255,255)):
     return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
 def text_size(text, font):
+    """วัดความกว้าง/สูงของข้อความเพื่อจัดตำแหน่งองค์ประกอบ UI."""
     pil = Image.new("RGB",(1,1))
     bb  = ImageDraw.Draw(pil).textbbox((0,0), text, font=font)
     return bb[2]-bb[0], bb[3]-bb[1]
@@ -107,13 +118,16 @@ det = mp_h.Holistic(static_image_mode=False, model_complexity=1,
                     min_detection_confidence=0.7,
                     min_tracking_confidence=0.7)
 
-def color(n): return GESTURE_COLORS.get(n, (0, 255, 160))
+def color(n):
+    """คืนสีประจำท่า หรือใช้สีเขียวเริ่มต้นเมื่อไม่มีการกำหนด."""
+    return GESTURE_COLORS.get(n, (0, 255, 160))
 
 if getattr(model, "n_features_in_", FEATURE_COUNT * SEQUENCE_LENGTH) != FEATURE_COUNT * SEQUENCE_LENGTH:
     print("This is not a motion-clip model. Collect clips and train a new model first.")
     raise SystemExit(1)
 
 def corner_box(img, x1,y1,x2,y2, c, t=3, L=30):
+    """วาดเฉพาะมุมกรอบ เพื่อไม่ให้เส้นทับภาพผู้ใช้มากเกินไป."""
     for pts in [[(x1,y1+L),(x1,y1),(x1+L,y1)],
                 [(x2-L,y1),(x2,y1),(x2,y1+L)],
                 [(x1,y2-L),(x1,y2),(x1+L,y2)],
@@ -169,7 +183,7 @@ prev = time.monotonic()
 
 
 def queue_sentence_action(event, x, y, _flags, _param):
-    """Queue a camera-window button click for the main loop."""
+    """แปลงตำแหน่งคลิกบนหน้ากล้องเป็น action ให้ลูปหลักทำต่อ."""
     if event != cv2.EVENT_LBUTTONUP:
         return
     for action, (x1, y1, x2, y2) in sentence_action_regions.items():
@@ -183,6 +197,7 @@ cv2.setMouseCallback(WINDOW_TITLE, queue_sentence_action)
 
 # ── helper: Sentence Bar ───────────────────────────────────
 def draw_sentence_bar(frm, W, H, sentence):
+    """วาดประโยค ปุ่มควบคุม และชื่อคีย์ลัดที่ด้านล่างของภาพ."""
     BAR_H = 146
     bar_y = H - BAR_H - 32
     ov = frm.copy()
@@ -238,7 +253,7 @@ def draw_sentence_bar(frm, W, H, sentence):
 
 # ── helper: Hold Progress Bar ──────────────────────────────
 def draw_hold_bar(frm, W, H, hold_pct, action_label):
-    """Progress toward automatically adding the confirmed word."""
+    """วาดความคืบหน้าการค้างท่าก่อนเพิ่มหรืออ่านคำอัตโนมัติ."""
     bar_y = H - 32 - 146 - 16
     bar_w = int((W - 40) * min(hold_pct, 1.0))
     cv2.rectangle(frm, (20, bar_y), (W-20, bar_y+10), (25,25,25), -1)
@@ -258,6 +273,7 @@ print("   ใช้ปุ่มบนหน้ากล้องเพื่อ�
 
 
 def save_sentence(source="detector-manual"):
+    """บันทึกประโยคปัจจุบันลงประวัติพร้อมระบุแหล่งที่มา."""
     if not sentence:
         print("⚠️ ประโยคว่างอยู่")
         return False
@@ -271,6 +287,7 @@ def save_sentence(source="detector-manual"):
 
 
 def speak_sentence():
+    """ส่งประโยคเข้าคิวเสียง และบันทึกประวัติเมื่อเปิดการตั้งค่าไว้."""
     if not sentence:
         print("⚠️ ประโยคว่างอยู่")
         return False
@@ -285,6 +302,7 @@ def speak_sentence():
 
 
 def add_confirmed_word(label, now):
+    """เพิ่มคำยืนยันด้วยตนเองแล้วเข้าสู่ cooldown เพื่อกันคลิกซ้ำ."""
     global add_cooldown, detection_phase
     if not label or not recognizer.speech_armed:
         print("⚠️ ยังไม่มีคำใหม่ที่ยืนยันแล้ว หรือยังไม่ได้ปล่อยท่าก่อนหน้า")
@@ -304,6 +322,7 @@ def add_confirmed_word(label, now):
 
 
 def perform_sentence_action(action, label, now):
+    """รวมการทำงาน add/remove/clear/speak/save ของปุ่มและคีย์บอร์ด."""
     if action == "add":
         add_confirmed_word(label, now)
     elif action == "remove":

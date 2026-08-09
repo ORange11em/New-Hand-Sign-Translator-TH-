@@ -1,4 +1,4 @@
-"""Collect short upper-body gesture clips for HandVox."""
+"""เก็บคลิป landmark แบบเดิมสำหรับแต่ละท่าผ่านกล้องเว็บแคม."""
 
 import argparse
 import os
@@ -17,6 +17,7 @@ from sequence_dataset import (
 
 
 def load_font(size):
+    """เลือกฟอนต์ Windows ที่แสดงภาษาไทยได้ตามขนาดที่ต้องการ."""
     for path in ("C:/Windows/Fonts/THSarabunNew.ttf", "C:/Windows/Fonts/tahoma.ttf"):
         if os.path.exists(path):
             return ImageFont.truetype(path, size)
@@ -30,6 +31,7 @@ WINDOW_TITLE = "HandVox - Clip Collector"
 
 
 def thai_text(image, text, position, font, color=(255, 255, 255)):
+    """วาดข้อความไทยด้วย Pillow แล้วแปลงภาพกลับเป็นรูปแบบ OpenCV."""
     pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     drawer = ImageDraw.Draw(pil)
     drawer.text(position, text, font=font, fill=(color[2], color[1], color[0]))
@@ -37,6 +39,7 @@ def thai_text(image, text, position, font, color=(255, 255, 255)):
 
 
 def centered_text(image, text, y, font, color=(255, 255, 255)):
+    """วาดข้อความไทยให้อยู่กึ่งกลางแนวนอนของภาพ."""
     pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     drawer = ImageDraw.Draw(pil)
     box = drawer.textbbox((0, 0), text, font=font)
@@ -46,9 +49,11 @@ def centered_text(image, text, y, font, color=(255, 255, 255)):
 
 
 def wait_for_start(camera, name, description, remaining):
+    """แสดงคำอธิบายท่าและรอ Space/คลิกเพื่อเริ่ม หรือ Q เพื่อยกเลิก."""
     record_requested = {"value": False, "rect": None}
 
     def on_mouse(event, x, y, flags, parameter):
+        """แปลงการคลิกปุ่มบนภาพเป็นคำสั่งเริ่มของลูปหลัก."""
         if event != cv2.EVENT_LBUTTONDOWN or record_requested["rect"] is None:
             return
         x1, y1, x2, y2 = record_requested["rect"]
@@ -92,7 +97,7 @@ def wait_for_start(camera, name, description, remaining):
 
 
 def countdown(camera, name, clip_number):
-    """Show a three-second break before each automatically recorded clip."""
+    """เว้นและนับถอยหลังสามวินาทีก่อนบันทึกแต่ละคลิปอัตโนมัติ."""
     for seconds in (3, 2, 1):
         started = time.time()
         while time.time() - started < 1:
@@ -113,6 +118,7 @@ def countdown(camera, name, clip_number):
 
 
 def collect_clip(camera, detector):
+    """เก็บเฉพาะเฟรมที่ดึงคุณลักษณะได้จนครบ SEQUENCE_LENGTH."""
     frames = []
     while len(frames) < SEQUENCE_LENGTH:
         ok, frame = camera.read()
@@ -139,6 +145,7 @@ def collect_clip(camera, detector):
 
 
 def main():
+    """เปิดกล้อง วนตามท่าที่ยังคลิปไม่ครบ และบันทึกลง Dataset รุ่นเดิม."""
     parser = argparse.ArgumentParser(description="Collect HandVox gesture clips")
     parser.add_argument("--gesture", help="Collect clips for this gesture only")
     args = parser.parse_args()

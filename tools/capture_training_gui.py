@@ -1,4 +1,4 @@
-"""Capture the HandVox training page for visual QA without opening the camera."""
+"""จับภาพหน้า GUI สำหรับตรวจงานภาพ โดยไม่เปิดกล้องหรือเริ่มเทรน."""
 
 import argparse
 from pathlib import Path

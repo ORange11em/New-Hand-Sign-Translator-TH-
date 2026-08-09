@@ -1,4 +1,4 @@
-"""Read active gestures and manage the separate planned vocabulary catalog."""
+"""อ่านท่าที่โมเดลใช้ได้ และจัดการแผนคำศัพท์ใหม่โดยแยกสองส่วนออกจากกัน."""
 
 from dataclasses import asdict, dataclass
 import json
@@ -13,6 +13,8 @@ PLANNED_STATUSES = ("planned", "verified", "collected", "trained")
 
 @dataclass(frozen=True)
 class ActiveGesture:
+    """คำที่โมเดลปัจจุบันทำนายได้ พร้อมคำอธิบายและสีสำหรับ UI."""
+
     name: str
     description: str
     color: tuple
@@ -20,6 +22,8 @@ class ActiveGesture:
 
 @dataclass
 class PlannedGesture:
+    """คำที่วางแผนเพิ่มในอนาคต แต่ยังไม่ถือว่าโมเดลรู้จัก."""
+
     id: str
     name: str
     category: str
@@ -29,6 +33,7 @@ class PlannedGesture:
     notes: str = ""
 
     def validate(self):
+        """ปรับข้อความและตรวจรหัส ลำดับ สถานะ และ URL อ้างอิง."""
         self.id = self.id.strip().lower()
         self.name = self.name.strip()
         self.category = self.category.strip()
@@ -51,6 +56,7 @@ class PlannedGesture:
 
     @classmethod
     def from_dict(cls, data):
+        """แปลง object จาก planned_gestures.json เป็น PlannedGesture."""
         if not isinstance(data, dict):
             raise DataFileError("ข้อมูลท่าที่วางแผนต้องเป็น object")
         try:
@@ -69,6 +75,8 @@ class PlannedGesture:
 
 
 class GestureCatalog:
+    """แยกการอ่าน active vocabulary ออกจากการแก้ planned vocabulary."""
+
     def __init__(
         self,
         active_path=CUSTOM_GESTURES_FILE,
@@ -78,6 +86,7 @@ class GestureCatalog:
         self.planned_path = Path(planned_path)
 
     def load_active(self):
+        """โหลดท่าที่ใช้งานได้จาก custom_gestures.json."""
         if not self.active_path.exists():
             return []
         try:
@@ -103,6 +112,7 @@ class GestureCatalog:
         return gestures
 
     def load_planned(self):
+        """โหลดและเรียงแผนคำศัพท์ตาม priority แล้วตามชื่อ."""
         if not self.planned_path.exists():
             return []
         try:
@@ -120,6 +130,7 @@ class GestureCatalog:
         return sorted(gestures, key=lambda item: (item.priority, item.name))
 
     def save_planned(self, gestures):
+        """ตรวจชื่อซ้ำ/ชนกับ active ก่อนบันทึกแผนแบบ atomic."""
         validated = [gesture.validate() for gesture in gestures]
         ids = [gesture.id for gesture in validated]
         names = [gesture.name for gesture in validated]
@@ -149,6 +160,7 @@ class GestureCatalog:
         temporary.replace(self.planned_path)
 
     def upsert_planned(self, gesture):
+        """เพิ่มรายการใหม่หรือแทนรายการเดิมที่มี id เดียวกัน."""
         gestures = self.load_planned()
         replaced = False
         for index, current in enumerate(gestures):
@@ -161,10 +173,10 @@ class GestureCatalog:
         self.save_planned(gestures)
 
     def delete_planned(self, gesture_id):
+        """ลบรายการตาม id และคืน False เมื่อไม่พบ."""
         gestures = self.load_planned()
         filtered = [gesture for gesture in gestures if gesture.id != gesture_id]
         if len(filtered) == len(gestures):
             return False
         self.save_planned(filtered)
         return True
-

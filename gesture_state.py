@@ -1,4 +1,4 @@
-"""State machine for stable, rejectable real-time gesture predictions."""
+"""เครื่องสถานะสำหรับยืนยันผลทำนาย ลดผลสั่น และกันคำเดิมยิงซ้ำ."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -6,6 +6,8 @@ import math
 
 
 class DetectionPhase(str, Enum):
+    """สถานะของผลตั้งแต่ยังไม่พบ จนยืนยันและรอให้ผู้ใช้ปล่อยท่า."""
+
     IDLE = "idle"
     CANDIDATE = "candidate"
     CONFIRMED = "confirmed"
@@ -14,6 +16,8 @@ class DetectionPhase(str, Enum):
 
 @dataclass(frozen=True)
 class DetectionResult:
+    """ค่าที่หน้ากล้องใช้แสดงผล พร้อมสัญญาณว่าผู้ใช้ปล่อยท่าแล้ว."""
+
     phase: DetectionPhase
     label: str = ""
     confidence: float = 0.0
@@ -21,12 +25,11 @@ class DetectionResult:
 
 
 class GestureStateMachine:
-    """Confirm repeated predictions and reject uncertain or stale results.
+    """ยืนยันคำจากผลซ้ำหลายเฟรมและปฏิเสธผลที่ไม่มั่นใจ.
 
-    A confirmed label is hidden immediately on an uncertain frame, then the
-    internal state is reset if uncertainty lasts for ``release_seconds``.
-    After a label is spoken, cooldown keeps it from being spoken repeatedly
-    until the user releases the gesture or presents a different label.
+    คำที่ยืนยันแล้วจะถูกซ่อนทันทีเมื่อเฟรมใหม่ไม่น่าเชื่อถือ และรีเซ็ตภายใน
+    เมื่อความไม่แน่นอนนานเกิน ``release_seconds`` หลังปล่อยคำแล้วสถานะ cooldown
+    จะกันคำเดิมซ้ำจนกว่าผู้ใช้ปล่อยมือหรือเปลี่ยนเป็นอีกท่า
     """
 
     def __init__(self, min_confidence=0.65, confirm_frames=4, release_seconds=0.35):
@@ -43,6 +46,7 @@ class GestureStateMachine:
         self.reset()
 
     def reset(self):
+        """กลับสู่ IDLE และล้างผู้สมัครกับตัวจับเวลาปล่อยท่า."""
         self.phase = DetectionPhase.IDLE
         self.label = ""
         self.confidence = 0.0
@@ -52,16 +56,18 @@ class GestureStateMachine:
 
     @property
     def speech_armed(self):
+        """บอกว่ามีคำยืนยันใหม่ที่ยังไม่ถูกเพิ่ม/อ่านออกไป."""
         return self.phase is DetectionPhase.CONFIRMED and bool(self.label)
 
     def mark_emitted(self, label):
-        """Latch a spoken label until release so it cannot repeat every second."""
+        """ล็อกคำที่ปล่อยแล้วใน cooldown เพื่อไม่ให้เพิ่มซ้ำทุกวินาที."""
         if self.phase is DetectionPhase.CONFIRMED and label == self.label:
             self.phase = DetectionPhase.COOLDOWN
             return True
         return False
 
     def update(self, label, confidence, landmarks_visible, now):
+        """รับผลหนึ่งเฟรมแล้วคืนสถานะที่ปลอดภัยสำหรับแสดงและสร้างประโยค."""
         confidence = float(confidence or 0.0)
         valid = (
             landmarks_visible
@@ -102,6 +108,7 @@ class GestureStateMachine:
         return DetectionResult(self.phase)
 
     def _start_candidate(self, label, confidence):
+        """เริ่มนับผลของคำผู้สมัครใหม่ตั้งแต่หนึ่งเฟรม."""
         self.phase = DetectionPhase.CANDIDATE
         self.label = label
         self.confidence = confidence
@@ -109,6 +116,7 @@ class GestureStateMachine:
         self._candidate_confidence_total = confidence
 
     def _handle_rejected(self, now):
+        """ซ่อนผลเก่า และรีเซ็ตเมื่อไม่เห็นผลที่ใช้ได้นานพอ."""
         if self.phase is DetectionPhase.IDLE:
             return DetectionResult(self.phase)
         if self._invalid_since is None:
@@ -118,6 +126,5 @@ class GestureStateMachine:
             self.reset()
             return DetectionResult(DetectionPhase.IDLE, released=True)
 
-        # Never expose the previous label on a rejected frame. This is the key
-        # guard against stale words being displayed or spoken.
+        # ห้ามคืน label เก่าในเฟรมที่ถูกปฏิเสธ เพื่อไม่ให้คำค้างถูกแสดงหรือพูดซ้ำ
         return DetectionResult(self.phase)

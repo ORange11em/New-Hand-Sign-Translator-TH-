@@ -1,3 +1,9 @@
+"""สร้างเอกสารบทที่ 1–5 ของ HandVox ด้วยรูปแบบ Word ที่กำหนด.
+
+ฟังก์ชันช่วงต้นควบคุมสไตล์ ตาราง เลขหน้า และรูป ส่วน build_chapter_1 ถึง
+build_chapter_5 เติมเนื้อหาแต่ละบท และ main บันทึกไฟล์ทั้งหมดลงโฟลเดอร์ผลลัพธ์
+"""
+
 from __future__ import annotations
 
 from pathlib import Path

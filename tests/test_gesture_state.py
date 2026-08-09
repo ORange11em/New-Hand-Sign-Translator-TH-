@@ -1,3 +1,5 @@
+"""ทดสอบการยืนยันผล การปฏิเสธ และ cooldown ของตัวตรวจจับ."""
+
 import unittest
 
 from gesture_state import DetectionPhase, GestureStateMachine

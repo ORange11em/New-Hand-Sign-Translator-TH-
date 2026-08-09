@@ -1,3 +1,3 @@
-"""HandVox desktop application package."""
+"""แพ็กเกจแอปเดสก์ท็อป HandVox และหมายเลขเวอร์ชันภายใน."""
 
 __version__ = "0.2.0"

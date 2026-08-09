@@ -1,4 +1,4 @@
-"""Launch existing HandVox scripts from the desktop application."""
+"""เปิดสคริปต์ย่อยของ HandVox เป็น process แยกจากหน้าต่าง GUI หลัก."""
 
 import subprocess
 import sys
@@ -19,10 +19,13 @@ SCRIPT_ALLOWLIST = {
 
 
 class ScriptLauncher:
+    """จำกัดสคริปต์ที่เปิดได้และป้องกันการเปิดงานเดิมซ้ำพร้อมกัน."""
+
     def __init__(self):
         self.processes = {}
 
     def launch(self, action, arguments=()):
+        """เปิด action ที่อยู่ใน allowlist ด้วย Python environment ปัจจุบัน."""
         if action not in SCRIPT_ALLOWLIST:
             raise LaunchError(f"ไม่รู้จักคำสั่ง: {action}")
         current = self.processes.get(action)
@@ -44,5 +47,6 @@ class ScriptLauncher:
         return process
 
     def is_running(self, action):
+        """ตรวจว่า process ของ action ยังไม่จบหรือไม่."""
         process = self.processes.get(action)
         return process is not None and process.poll() is None

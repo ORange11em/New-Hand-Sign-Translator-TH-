@@ -1,4 +1,8 @@
-"""Serialized speech output for HandVox."""
+"""บริการอ่านข้อความแบบคิว เพื่อไม่ให้เสียงหลายคำเล่นทับกัน.
+
+ระบบลองใช้ gTTS/pygame ก่อน และถ้าออนไลน์ไม่ได้จะถอยไปใช้ pyttsx3 แบบออฟไลน์
+เมื่อมีให้ใช้งาน
+"""
 
 import os
 from pathlib import Path
@@ -10,7 +14,7 @@ import uuid
 
 
 class SpeechService:
-    """Play one utterance at a time from a small non-blocking queue."""
+    """เล่นเสียงทีละข้อความจากคิวขนาดเล็กโดยไม่บล็อกหน้าจอหลัก."""
 
     _STOP = object()
 
@@ -53,9 +57,11 @@ class SpeechService:
 
     @property
     def available(self):
+        """บอกว่ามีเครื่องมือออนไลน์หรือออฟไลน์อย่างน้อยหนึ่งตัว."""
         return self._gtts_class is not None or self._pyttsx3 is not None
 
     def speak(self, text):
+        """ใส่ข้อความเข้าคิวทันที และคืน False เมื่อเสียงไม่พร้อมหรือคิวเต็ม."""
         text = str(text).strip()
         if not self.available or not text:
             return False
@@ -67,6 +73,7 @@ class SpeechService:
             return False
 
     def close(self, timeout=2.0):
+        """สั่ง worker หยุดและรอช่วงสั้น ๆ ก่อนปิดโปรแกรม."""
         if self._worker is None:
             return
         while True:
@@ -83,6 +90,7 @@ class SpeechService:
         self._worker = None
 
     def _run(self):
+        """ลูปเบื้องหลังที่หยิบข้อความจากคิวมาเล่นตามลำดับ."""
         while True:
             try:
                 text = self._queue.get(timeout=0.25)
@@ -99,6 +107,7 @@ class SpeechService:
                 self._queue.task_done()
 
     def _speak_once(self, text):
+        """ลองเสียงออนไลน์ก่อน แล้ว fallback ไปเสียงออฟไลน์เมื่อเกิดปัญหา."""
         if self._gtts_class is not None and self._pygame is not None:
             try:
                 self._speak_online(text)
@@ -108,6 +117,7 @@ class SpeechService:
         self._speak_offline(text)
 
     def _speak_online(self, text):
+        """สร้าง MP3 ภาษาไทยชั่วคราว เล่นจนจบ แล้วลบไฟล์."""
         temporary = Path(tempfile.gettempdir()) / f"handvox_{uuid.uuid4().hex}.mp3"
         try:
             self._gtts_class(text=text, lang="th").save(str(temporary))
@@ -128,6 +138,7 @@ class SpeechService:
                 pass
 
     def _speak_offline(self, text):
+        """อ่านข้อความผ่าน pyttsx3 เมื่อไม่สามารถใช้ gTTS ได้."""
         if self._pyttsx3 is None:
             print("⚠️ ไม่มีระบบเสียงที่ใช้งานได้")
             return

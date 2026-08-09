@@ -1,3 +1,5 @@
+"""จุดเริ่มต้นแบบสั้นสำหรับเปิดหน้าต่างหลักของแอป HandVox."""
+
 from handvox.app import main
 
 

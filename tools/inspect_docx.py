@@ -1,3 +1,5 @@
+"""อ่านโครงสร้าง DOCX เพื่อสรุปย่อหน้า ตาราง รูป และ style สำหรับตรวจเอกสาร."""
+
 from __future__ import annotations
 
 import argparse

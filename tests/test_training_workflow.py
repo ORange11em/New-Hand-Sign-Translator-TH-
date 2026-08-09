@@ -1,3 +1,5 @@
+"""ทดสอบ preflight ตัวชี้วัด เกณฑ์ผ่าน และ experiment ด้วยข้อมูลสังเคราะห์."""
+
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path

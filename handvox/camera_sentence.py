@@ -1,4 +1,4 @@
-"""Camera sentence-capture timing that can be tested without a webcam."""
+"""จับเวลาค้างท่าเพื่อเพิ่มคำครั้งเดียว โดยทดสอบได้โดยไม่ต้องเปิดกล้อง."""
 
 from dataclasses import dataclass
 import math
@@ -6,12 +6,14 @@ import math
 
 @dataclass(frozen=True)
 class HoldCaptureResult:
+    """ผลการจับเวลา: สัดส่วนความคืบหน้าและคำที่พร้อมปล่อยหนึ่งครั้ง."""
+
     progress: float = 0.0
     ready_label: str = ""
 
 
 class GestureHoldTimer:
-    """Emit one confirmed label after it has been held for the configured time."""
+    """ปล่อยคำหนึ่งครั้งเมื่อค้างท่าที่ยืนยันแล้วครบเวลาที่กำหนด."""
 
     def __init__(self, hold_seconds=1.0):
         hold_seconds = float(hold_seconds)
@@ -21,11 +23,13 @@ class GestureHoldTimer:
         self.reset()
 
     def reset(self):
+        """ลืมท่าและเวลารอบก่อน เพื่อเริ่มรับท่าใหม่."""
         self._label = ""
         self._started_at = None
         self._emitted = False
 
     def update(self, label, armed, now):
+        """อัปเดตสถานะเวลาและคืนคำเมื่อค้างครบ โดยไม่ปล่อยคำเดิมซ้ำ."""
         label = str(label or "").strip()
         now = float(now)
         if not math.isfinite(now):
