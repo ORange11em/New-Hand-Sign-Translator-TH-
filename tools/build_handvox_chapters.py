@@ -24,13 +24,16 @@ ASSETS = ROOT / "qa" / "assets"
 OUTPUT.mkdir(parents=True, exist_ok=True)
 ASSETS.mkdir(parents=True, exist_ok=True)
 
-FONT_NAME = "Angsana New"
+FONT_NAME = "TH Sarabun New"
+# The font name embedded in the DOCX is authoritative.  Use the available
+# Thai font only for generating the small illustrative placeholder bitmaps.
 FONT_FILE = Path("C:/Windows/Fonts/angsana.ttc")
-INK = "111111"
-BLUE = "1F4E79"
-LIGHT_BLUE = "DCE6F1"
+INK = "000000"
+BLUE = "000000"
+LIGHT_BLUE = "E7E6E6"
 LIGHT_GRAY = "F2F2F2"
 MID_GRAY = "A6A6A6"
+_CURRENT_HEADING_LEVEL = 1
 
 
 def set_run_font(run, size=16, bold=False, italic=False, color=INK):
@@ -140,7 +143,7 @@ def set_fixed_table_geometry(table, widths_cm):
 
 
 def add_page_number(paragraph):
-    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     run = paragraph.add_run()
     begin = OxmlElement("w:fldChar")
     begin.set(qn("w:fldCharType"), "begin")
@@ -158,7 +161,7 @@ def add_page_number(paragraph):
     set_run_font(run, 14)
 
 
-def configure_document(doc):
+def configure_document(doc, page_start=1):
     section = doc.sections[0]
     section.page_width = Cm(21.0)
     section.page_height = Cm(29.7)
@@ -170,6 +173,12 @@ def configure_document(doc):
     section.footer_distance = Cm(1.25)
     section.different_first_page_header_footer = True
 
+    pg_num_type = section._sectPr.find(qn("w:pgNumType"))
+    if pg_num_type is None:
+        pg_num_type = OxmlElement("w:pgNumType")
+        section._sectPr.append(pg_num_type)
+    pg_num_type.set(qn("w:start"), str(page_start))
+
     styles = doc.styles
     normal = styles["Normal"]
     normal.font.name = FONT_NAME
@@ -178,9 +187,8 @@ def configure_document(doc):
     normal._element.rPr.rFonts.set(qn("w:hAnsi"), FONT_NAME)
     normal._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_NAME)
     normal._element.rPr.rFonts.set(qn("w:cs"), FONT_NAME)
-    # Thai text contains relatively few explicit spaces. Full justification can
-    # therefore create conspicuously wide gaps between phrases in Word. A clean
-    # left alignment is much more readable while keeping a formal report layout.
+    # Thai academic body paragraphs use a consistent 1.25 cm first-line
+    # indent. Left alignment avoids Word stretching Thai glyphs and spaces.
     normal.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
     normal.paragraph_format.first_line_indent = Cm(1.25)
     normal.paragraph_format.space_before = Pt(0)
@@ -198,6 +206,9 @@ def configure_document(doc):
         style._element.rPr.rFonts.set(qn("w:hAnsi"), FONT_NAME)
         style._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_NAME)
         style._element.rPr.rFonts.set(qn("w:cs"), FONT_NAME)
+        level = int(style_name[-1])
+        style.paragraph_format.left_indent = Cm(1.25 * (level - 1))
+        style.paragraph_format.right_indent = Cm(0)
         style.paragraph_format.first_line_indent = Cm(0)
         style.paragraph_format.space_before = Pt(10 if style_name == "Heading 1" else 6)
         style.paragraph_format.space_after = Pt(3)
@@ -216,15 +227,20 @@ def configure_document(doc):
     caption.paragraph_format.space_after = Pt(6)
     caption.paragraph_format.keep_with_next = True
 
-    footer = section.footer
-    footer.is_linked_to_previous = False
-    footer_p = footer.paragraphs[0]
-    footer_p.clear()
-    add_page_number(footer_p)
+    header = section.header
+    header.is_linked_to_previous = False
+    header_p = header.paragraphs[0]
+    header_p.clear()
+    add_page_number(header_p)
 
-    first_footer = section.first_page_footer
-    first_footer.is_linked_to_previous = False
-    first_footer.paragraphs[0].clear()
+    first_header = section.first_page_header
+    first_header.is_linked_to_previous = False
+    first_header.paragraphs[0].clear()
+
+    section.footer.is_linked_to_previous = False
+    section.footer.paragraphs[0].clear()
+    section.first_page_footer.is_linked_to_previous = False
+    section.first_page_footer.paragraphs[0].clear()
 
     settings = doc.settings.element
     compat = settings.find(qn("w:compat"))
@@ -249,7 +265,12 @@ def add_chapter_title(doc, number, title):
 
 
 def add_heading(doc, text, level=1):
+    global _CURRENT_HEADING_LEVEL
+    _CURRENT_HEADING_LEVEL = level
     p = doc.add_paragraph(style=f"Heading {level}")
+    p.paragraph_format.left_indent = Cm(1.25 * (level - 1))
+    p.paragraph_format.right_indent = Cm(0)
+    p.paragraph_format.first_line_indent = Cm(0)
     p.add_run(text)
     for run in p.runs:
         set_run_font(run, 18 if level == 1 else 16, bold=True, color=BLUE if level == 1 else INK)
@@ -259,6 +280,8 @@ def add_heading(doc, text, level=1):
 def add_body(doc, text, indent=True, italic=False):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    p.paragraph_format.left_indent = Cm(0)
+    p.paragraph_format.right_indent = Cm(0)
     p.paragraph_format.first_line_indent = Cm(1.25 if indent else 0)
     p.paragraph_format.space_before = Pt(0)
     p.paragraph_format.space_after = Pt(2)
@@ -290,14 +313,16 @@ def add_chapter_overview(doc, introduction, sections):
 
 
 def add_item(doc, number, text):
+    marker_indent = 1.25
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    p.paragraph_format.left_indent = Cm(1.25)
+    p.paragraph_format.left_indent = Cm(marker_indent + 1.25)
     p.paragraph_format.first_line_indent = Cm(-1.25)
     p.paragraph_format.space_after = Pt(2)
     p.paragraph_format.keep_together = True
-    set_run_font(p.add_run(f"{number} "), 16, bold=True)
-    set_run_font(p.add_run(text), 16)
+    # Keep the number and its text in one run so Word cannot split them into
+    # separate visual blocks (the defect shown in the user's screenshot).
+    set_run_font(p.add_run(f"{number} {text}"), 16)
     return p
 
 
@@ -311,7 +336,7 @@ def add_note(doc, label, text):
     p.paragraph_format.space_after = Pt(6)
     ppr = p._p.get_or_add_pPr()
     shd = OxmlElement("w:shd")
-    shd.set(qn("w:fill"), "EDF4F8")
+    shd.set(qn("w:fill"), "F2F2F2")
     ppr.append(shd)
     borders = OxmlElement("w:pBdr")
     for edge in ("top", "left", "bottom", "right"):
@@ -319,7 +344,7 @@ def add_note(doc, label, text):
         node.set(qn("w:val"), "single")
         node.set(qn("w:sz"), "8")
         node.set(qn("w:space"), "4")
-        node.set(qn("w:color"), "9FBAD0")
+        node.set(qn("w:color"), "000000")
         borders.append(node)
     ppr.append(borders)
     set_run_font(p.add_run(f"{label}: "), 15, bold=True, color=BLUE)
@@ -392,7 +417,7 @@ def make_flow_diagram(path):
     font_title = ImageFont.truetype(str(FONT_FILE), 48)
     font_box = ImageFont.truetype(str(FONT_FILE), 38)
     font_small = ImageFont.truetype(str(FONT_FILE), 30)
-    draw.text((900, 25), "สถาปัตยกรรมการทำงานของ HandVox", font=font_title, anchor="ma", fill="#1F4E79")
+    draw.text((900, 25), "สถาปัตยกรรมการทำงานของ HandVox", font=font_title, anchor="ma", fill="#000000")
     boxes = [
         ("เว็บแคม", "ภาพวิดีโอ"),
         ("MediaPipe Holistic", "15 จุดช่วงบน + มือ 2 ข้าง"),
@@ -405,12 +430,12 @@ def make_flow_diagram(path):
     for idx, (title, subtitle) in enumerate(boxes):
         x1 = start_x + idx * (width + gap)
         x2 = x1 + width
-        draw.rounded_rectangle((x1, y, x2, y + height), radius=18, fill="#EDF4F8", outline="#1F4E79", width=4)
-        draw.text(((x1 + x2) / 2, y + 72), title, font=font_box, anchor="mm", fill="#14324A")
-        draw.multiline_text(((x1 + x2) / 2, y + 150), subtitle, font=font_small, anchor="mm", align="center", fill="#404040", spacing=8)
+        draw.rounded_rectangle((x1, y, x2, y + height), radius=18, fill="#F2F2F2", outline="#000000", width=4)
+        draw.text(((x1 + x2) / 2, y + 72), title, font=font_box, anchor="mm", fill="#000000")
+        draw.multiline_text(((x1 + x2) / 2, y + 150), subtitle, font=font_small, anchor="mm", align="center", fill="#000000", spacing=8)
         if idx < len(boxes) - 1:
             draw_arrow(draw, (x2 + 5, y + height / 2), (x2 + gap - 5, y + height / 2), "#4F81BD")
-    draw.text((900, 535), "ใช้คุณลักษณะรูปทรงและการเคลื่อนไหวที่กำหนดไว้ล่วงหน้า ไม่ใช่การแปลภาษามือต่อเนื่องทั้งภาษา", font=font_small, anchor="mm", fill="#7F6000")
+    draw.text((900, 535), "ใช้คุณลักษณะรูปทรงและการเคลื่อนไหวที่กำหนดไว้ล่วงหน้า ไม่ใช่การแปลภาษามือต่อเนื่องทั้งภาษา", font=font_small, anchor="mm", fill="#000000")
     image.save(path, quality=95)
 
 
@@ -451,7 +476,7 @@ def add_image_placeholder(doc, caption, description, height_lines=5):
     spacer = "\n" * max(2, height_lines // 2)
     set_run_font(p.add_run(spacer), 14)
     set_run_font(p.add_run("[เว้นพื้นที่สำหรับภาพประกอบ]\n"), 15, bold=True, color=BLUE)
-    set_run_font(p.add_run(f"ภาพที่ต้องการ: {description}"), 14, italic=True, color="595959")
+    set_run_font(p.add_run(f"ภาพที่ต้องการ: {description}"), 14, italic=True, color="000000")
     set_run_font(p.add_run(spacer), 14)
     cap = doc.add_paragraph(style="Caption")
     set_run_font(cap.add_run(caption), 14)
@@ -460,7 +485,7 @@ def add_image_placeholder(doc, caption, description, height_lines=5):
 
 def build_chapter_1():
     doc = Document()
-    configure_document(doc)
+    configure_document(doc, page_start=1)
     add_chapter_title(doc, 1, "บทนำ")
     add_chapter_overview(
         doc,
@@ -468,7 +493,7 @@ def build_chapter_1():
         [
             ("1.1", "ที่มาและความสำคัญของปัญหา"),
             ("1.2", "วัตถุประสงค์ของโครงงาน"),
-            ("1.3", "ขอบเขตของโครงงาน"),
+            ("1.3", "ขอบเขตการศึกษา"),
             ("1.4", "วิธีดำเนินโครงงานโดยสรุป"),
             ("1.5", "ประโยชน์ที่คาดว่าจะได้รับ"),
             ("1.6", "ทรัพยากรที่ใช้ในการพัฒนา"),
@@ -490,7 +515,8 @@ def build_chapter_1():
     add_item(doc, "1.2.3", "เพื่อแสดงผลการรู้จำเป็นชื่อท่า ค่าความเชื่อมั่น ข้อความสะสมเป็นประโยค และเสียงพูดภาษาไทย")
     add_item(doc, "1.2.4", "เพื่อประเมินผลการจำแนกภายในชุดข้อมูลของโครงงาน และระบุข้อจำกัดที่ต้องตรวจสอบก่อนนำไปใช้กับผู้ใช้หรือสภาพแวดล้อมใหม่")
 
-    add_heading(doc, "1.3 ขอบเขตของโครงงาน")
+    add_heading(doc, "1.3 ขอบเขตการศึกษา")
+    add_body(doc, "การศึกษานี้มุ่งพัฒนาต้นแบบ HandVox สำหรับรู้จำท่าทางภาษามือไทยแบบแยกคำจากภาพเคลื่อนไหวที่รับผ่านเว็บแคม โดยศึกษากระบวนการตั้งแต่การเก็บและเตรียมข้อมูล การสกัดจุดสำคัญของร่างกายและมือ การสร้างแบบจำลองจำแนกท่าทาง ตลอดจนการนำผลไปแสดงเป็นข้อความ ประโยค และเสียงภาษาไทย ทั้งนี้กำหนดขอบเขตด้านการทำงาน ข้อมูลและแบบจำลอง แพลตฟอร์ม และสิ่งที่อยู่นอกขอบเขตไว้ดังต่อไปนี้")
     add_heading(doc, "1.3.1 ขอบเขตด้านการทำงาน", 2)
     add_item(doc, "1)", "รับภาพจากเว็บแคมหนึ่งตัวและประมวลผลบุคคลหนึ่งคน โดยต้องเห็นช่วงไหล่และมืออย่างน้อยหนึ่งข้าง")
     add_item(doc, "2)", "รู้จำท่าทีละหนึ่งคำจากหน้าต่างข้อมูลล่าสุด 30 เฟรม และจำแนกเฉพาะท่าที่มีอยู่ในชุดข้อมูลของโครงงาน")
@@ -570,14 +596,14 @@ def build_chapter_1():
     add_heading(doc, "1.9 โครงสร้างของรายงาน")
     add_body(doc, "รายงานโครงงานแบ่งเป็น 5 บท ได้แก่ บทที่ 1 บทนำ บทที่ 2 ความรู้พื้นฐานและงานที่เกี่ยวข้อง บทที่ 3 วิธีดำเนินการและการออกแบบระบบ บทที่ 4 ผลการพัฒนาและผลการประเมิน และบทที่ 5 สรุปผล อภิปรายผล ข้อจำกัด และข้อเสนอแนะ การแยกเนื้อหาเช่นนี้ช่วยให้วัตถุประสงค์ วิธีทดลอง ผลลัพธ์ และข้อสรุปสามารถตรวจสอบย้อนกลับถึงกันได้")
 
-    path = OUTPUT / "บทที่ 1_ฉบับปรับปรุง_HandVox.docx"
+    path = OUTPUT / "บทที่ 1_ฉบับปรับปรุง_HandVox_THSarabun.docx"
     doc.save(path)
     return path
 
 
 def build_chapter_2():
     doc = Document()
-    configure_document(doc)
+    configure_document(doc, page_start=8)
     add_chapter_title(doc, 2, "ความรู้พื้นฐานและงานที่เกี่ยวข้อง")
     add_chapter_overview(
         doc,
@@ -700,14 +726,14 @@ def build_chapter_2():
     for ref in refs:
         add_reference(doc, ref)
 
-    path = OUTPUT / "บทที่ 2_ฉบับปรับปรุง_HandVox.docx"
+    path = OUTPUT / "บทที่ 2_ฉบับปรับปรุง_HandVox_THSarabun.docx"
     doc.save(path)
     return path
 
 
 def build_chapter_3():
     doc = Document()
-    configure_document(doc)
+    configure_document(doc, page_start=17)
     add_chapter_title(doc, 3, "วิธีดำเนินการและการออกแบบระบบ")
     add_chapter_overview(
         doc,
@@ -848,25 +874,31 @@ def build_chapter_3():
     add_item(doc, "4)", "ไม่ใช้ค่าความเชื่อมั่นแทนหลักฐานความถูกต้อง และไม่ใช้ระบบในบริบทสำคัญโดยไม่มีการยืนยันจากมนุษย์")
     add_item(doc, "5)", "รายงานจำนวนผู้ให้ข้อมูลและเงื่อนไขการทดสอบในบทที่ 4 เพื่อให้ผู้อ่านประเมินความสามารถทั่วไปของผลได้")
 
+    # Keep the five quality-control items together in a compact academic list
+    # so the chapter conclusion is not stranded on a nearly blank page.
+    for paragraph in doc.paragraphs[-5:]:
+        paragraph.paragraph_format.line_spacing = 1.0
+        paragraph.paragraph_format.space_after = Pt(0)
+
     add_heading(doc, "3.12 บทสรุป")
     summary_paragraphs = [
         add_body(doc, "HandVox รับภาพเว็บแคมและใช้ MediaPipe Holistic สกัดจุดช่วงบน 15 จุดกับมือสองข้าง รวม 171 คุณลักษณะต่อเฟรม จากนั้นปรับมาตรฐาน เก็บลำดับ 30 เฟรมเป็นเวกเตอร์ 5,130 ค่า และฝึก SVM แบบ RBF ชุดข้อมูลปัจจุบันมี 120 คลิปจาก 4 ท่า แบ่งเป็นชุดฝึก 96 คลิปและชุดทดสอบ 24 คลิป"),
         add_body(doc, "ขั้นตอนนี้ทำให้การเก็บข้อมูลและการทำนายสอดคล้องกัน แต่บทถัดไปต้องใช้ผลจากโมเดลคลิปรุ่นปัจจุบัน บันทึกตัวชี้วัดอย่างเป็นระบบ และทดสอบกับผู้ให้ข้อมูลและสภาพแวดล้อมใหม่ก่อนสรุปการใช้งานจริง"),
     ]
     for paragraph in summary_paragraphs:
-        paragraph.paragraph_format.line_spacing = 1.0
+        paragraph.paragraph_format.line_spacing = 0.95
         paragraph.paragraph_format.space_after = Pt(0)
         for run in paragraph.runs:
-            run.font.size = Pt(15)
+            run.font.size = Pt(14)
 
-    path = OUTPUT / "บทที่ 3_ฉบับปรับปรุง_HandVox.docx"
+    path = OUTPUT / "บทที่ 3_ฉบับปรับปรุง_HandVox_THSarabun.docx"
     doc.save(path)
     return path
 
 
 def build_chapter_4():
     doc = Document()
-    configure_document(doc)
+    configure_document(doc, page_start=26)
     add_chapter_title(doc, 4, "ผลการดำเนินงานและการประเมินผล")
     add_chapter_overview(
         doc,
@@ -976,14 +1008,14 @@ def build_chapter_4():
     add_body(doc, "HandVox รุ่นปัจจุบันใช้ข้อมูล 120 คลิปจาก 4 ท่า คลิปละ 30 เฟรมและ 171 คุณลักษณะต่อเฟรม แบบจำลอง SVC แบบ RBF ทำนายชุดทดสอบ 24 คลิปได้ถูกทั้งหมด และให้ accuracy 100% ในการตรวจสอบไขว้ทั้ง 5 ส่วน ผลนี้ยืนยันว่ากระบวนการข้อมูลและแบบจำลองสามารถแยกตัวอย่างภายในชุดต้นแบบได้อย่างสอดคล้อง")
     add_body(doc, "อย่างไรก็ตาม คะแนนดังกล่าวยังไม่เป็นหลักฐานของการใช้งานทั่วไป เนื่องจากการประเมินสุ่มในระดับคลิปและไม่มีข้อมูลผู้ให้ข้อมูลหรือเซสชัน บทที่ 5 จึงอภิปรายผลภายใต้ข้อจำกัดนี้และเสนอแนวทางเก็บข้อมูล ทดสอบ และปรับปรุงระบบต่อไป")
 
-    path = OUTPUT / "บทที่ 4_ฉบับปรับปรุง_HandVox.docx"
+    path = OUTPUT / "บทที่ 4_ฉบับปรับปรุง_HandVox_THSarabun.docx"
     doc.save(path)
     return path
 
 
 def build_chapter_5():
     doc = Document()
-    configure_document(doc)
+    configure_document(doc, page_start=34)
     add_chapter_title(doc, 5, "สรุปผล อภิปรายผล และข้อเสนอแนะ")
     add_chapter_overview(
         doc,
@@ -1059,11 +1091,33 @@ def build_chapter_5():
     add_item(doc, "4)", "ศึกษาว่า สีหน้าและท่าทางที่ไม่ใช้มือมีบทบาทต่อความหมายของคำอย่างไร พร้อมประเมินผลกระทบด้านความเป็นส่วนตัว")
     add_item(doc, "5)", "ออกแบบและทดสอบร่วมกับชุมชนผู้ใช้ภาษามือ ผู้เชี่ยวชาญด้านภาษา และผู้เชี่ยวชาญด้านการเข้าถึง เพื่อให้โจทย์ คำศัพท์ และเกณฑ์ความสำเร็จสอดคล้องกับการใช้งานจริง")
 
+    add_heading(doc, "5.5.3 ชุดคำศัพท์ที่เสนอให้เพิ่มในอนาคต 16 ท่า", 2)
+    add_body(doc, "เพื่อขยายระบบจากคำทักทายพื้นฐานไปสู่การสื่อสารในชีวิตประจำวัน เสนอให้เก็บข้อมูลเพิ่มอีก 16 ป้ายกำกับดังตารางที่ 5.4 รายการนี้เป็นชื่อคำสำหรับวางแผนชุดข้อมูล ไม่ใช่ข้อกำหนดรูปแบบการทำท่า โดยต้องตรวจสอบรูปแบบภาษามือไทย ความแตกต่างตามบริบท และความเหมาะสมร่วมกับผู้ใช้ภาษามือหรือผู้เชี่ยวชาญก่อนบันทึกข้อมูลจริง")
+    add_table(doc, ["ลำดับ", "คำศัพท์ที่เสนอ", "วัตถุประสงค์การใช้งาน"], [
+        ["1", "ใช่", "ใช้ตอบรับหรือยืนยันข้อมูล"],
+        ["2", "ไม่ใช่", "ใช้ปฏิเสธหรือแก้ไขความเข้าใจ"],
+        ["3", "กรุณา", "ใช้ประกอบการขอความช่วยเหลืออย่างสุภาพ"],
+        ["4", "ช่วยด้วย", "ใช้แจ้งความต้องการความช่วยเหลือเร่งด่วน"],
+        ["5", "ต้องการ", "ใช้เริ่มต้นการบอกความประสงค์"],
+        ["6", "ไม่ต้องการ", "ใช้ปฏิเสธสิ่งของหรือบริการ"],
+        ["7", "กิน", "ใช้สื่อสารความต้องการเกี่ยวกับอาหาร"],
+        ["8", "ดื่ม", "ใช้สื่อสารความต้องการเกี่ยวกับเครื่องดื่ม"],
+        ["9", "ห้องน้ำ", "ใช้สอบถามหรือแจ้งความต้องการใช้ห้องน้ำ"],
+        ["10", "โรงพยาบาล", "ใช้ระบุสถานที่เมื่อขอรับบริการสุขภาพ"],
+        ["11", "หมอ", "ใช้กล่าวถึงบุคลากรทางการแพทย์"],
+        ["12", "เจ็บ", "ใช้แจ้งอาการเจ็บหรือความไม่สบาย"],
+        ["13", "ที่ไหน", "ใช้สร้างคำถามเกี่ยวกับสถานที่"],
+        ["14", "ใคร", "ใช้สร้างคำถามเกี่ยวกับบุคคล"],
+        ["15", "อะไร", "ใช้สร้างคำถามเกี่ยวกับสิ่งของหรือเหตุการณ์"],
+        ["16", "ลาก่อน", "ใช้จบการสนทนา"],
+    ], [1.4, 3.2, 10.05], caption="ตารางที่ 5.4 ชุดคำศัพท์ที่เสนอให้เพิ่มในอนาคต 16 ท่า", font_size=13)
+    add_body(doc, "แผนเก็บข้อมูลควรกำหนดจำนวนคลิปต่อท่าให้เท่ากัน เก็บจากผู้ทำท่าหลายคนและหลายเซสชัน พร้อมบันทึกรหัสผู้ให้ข้อมูล สภาพแสง ฉากหลัง ระยะ มุมกล้อง และความเร็วในการทำท่า จากนั้นแบ่งชุดฝึก ชุดตรวจสอบ และชุดทดสอบโดยไม่ให้ข้อมูลของผู้ทำท่าหรือเซสชันเดียวกันรั่วไหลข้ามชุด")
+
     add_heading(doc, "5.6 สรุปภาพรวม")
     add_body(doc, "HandVox แสดงให้เห็นความเป็นไปได้ของการใช้ MediaPipe Holistic ร่วมกับ SVM เพื่อรู้จำท่าทางแบบแยกคำจากคลิปสั้น ระบบเชื่อมขั้นตอนเก็บข้อมูล ฝึกแบบจำลอง ทำนาย แสดงข้อความ สร้างประโยค และอ่านเสียงไว้ในต้นแบบเดียว ผลภายในชุดข้อมูลอยู่ในระดับสมบูรณ์สำหรับ 4 ท่าที่มีอยู่")
     add_body(doc, "คุณค่าของผลลัพธ์จึงอยู่ที่การพิสูจน์กระบวนการและเป็นฐานสำหรับทดลองต่อ มากกว่าการรับรองความแม่นยำในโลกจริง ขั้นตอนสำคัญถัดไปคือเก็บข้อมูลหลายผู้ทำท่าและหลายเซสชัน จัดทำ metadata ประเมินแบบแยกกลุ่มและภายนอก วัดเวลาแฝง และทดสอบกับผู้ใช้เป้าหมายภายใต้การขอความยินยอมและการคุ้มครองข้อมูลที่เหมาะสม")
 
-    path = OUTPUT / "บทที่ 5_ฉบับปรับปรุง_HandVox.docx"
+    path = OUTPUT / "บทที่ 5_ฉบับปรับปรุง_HandVox_THSarabun.docx"
     doc.save(path)
     return path
 
