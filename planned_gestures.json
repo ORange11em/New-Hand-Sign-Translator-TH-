@@ -1,25 +1,185 @@
 {
   "version": 1,
   "gestures": [
-    {"id": "yes", "name": "ใช่", "category": "ตอบและฉุกเฉิน", "priority": 1, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "no", "name": "ไม่ใช่", "category": "ตอบและฉุกเฉิน", "priority": 1, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "help", "name": "ช่วยด้วย", "category": "ตอบและฉุกเฉิน", "priority": 1, "reference_url": "", "status": "planned", "notes": "ตรวจสอบว่าควรใช้ label ช่วย หรือ ช่วยด้วย"},
-    {"id": "toilet", "name": "ห้องน้ำ", "category": "ตอบและฉุกเฉิน", "priority": 1, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "water", "name": "น้ำ", "category": "ความต้องการพื้นฐาน", "priority": 2, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "eat", "name": "กิน", "category": "ความต้องการพื้นฐาน", "priority": 2, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "pain", "name": "เจ็บ", "category": "ความต้องการพื้นฐาน", "priority": 2, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "doctor", "name": "หมอ", "category": "ความต้องการพื้นฐาน", "priority": 2, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "understand", "name": "เข้าใจ", "category": "การสื่อสาร", "priority": 3, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "not_understand", "name": "ไม่เข้าใจ", "category": "การสื่อสาร", "priority": 3, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ"},
-    {"id": "want", "name": "ต้องการ", "category": "การสื่อสาร", "priority": 3, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "stop", "name": "หยุด", "category": "การสื่อสาร", "priority": 3, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "can", "name": "ได้", "category": "การกระทำ", "priority": 4, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบความหมายตามบริบท"},
-    {"id": "cannot", "name": "ไม่ได้", "category": "การกระทำ", "priority": 4, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ"},
-    {"id": "go", "name": "ไป", "category": "การกระทำ", "priority": 4, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "come", "name": "มา", "category": "การกระทำ", "priority": 4, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "not_want", "name": "ไม่ต้องการ", "category": "สุขภาพและคำถาม", "priority": 5, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ"},
-    {"id": "where", "name": "ที่ไหน", "category": "สุขภาพและคำถาม", "priority": 5, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "sick", "name": "ป่วย", "category": "สุขภาพและคำถาม", "priority": 5, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"},
-    {"id": "medicine", "name": "ยา", "category": "สุขภาพและคำถาม", "priority": 5, "reference_url": "", "status": "planned", "notes": "รอตรวจสอบรูปแบบภาษามือไทย"}
+    {
+      "id": "help",
+      "name": "ช่วยด้วย",
+      "category": "ตอบและฉุกเฉิน",
+      "priority": 1,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "ตรวจสอบว่าควรใช้ label ช่วย หรือ ช่วยด้วย"
+    },
+    {
+      "id": "toilet",
+      "name": "ห้องน้ำ",
+      "category": "ตอบและฉุกเฉิน",
+      "priority": 1,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "yes",
+      "name": "ใช่",
+      "category": "ตอบและฉุกเฉิน",
+      "priority": 1,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "no",
+      "name": "ไม่ใช่",
+      "category": "ตอบและฉุกเฉิน",
+      "priority": 1,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "eat",
+      "name": "กิน",
+      "category": "ความต้องการพื้นฐาน",
+      "priority": 2,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "water",
+      "name": "น้ำ",
+      "category": "ความต้องการพื้นฐาน",
+      "priority": 2,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "doctor",
+      "name": "หมอ",
+      "category": "ความต้องการพื้นฐาน",
+      "priority": 2,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "pain",
+      "name": "เจ็บ",
+      "category": "ความต้องการพื้นฐาน",
+      "priority": 2,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "want",
+      "name": "ต้องการ",
+      "category": "การสื่อสาร",
+      "priority": 3,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "stop",
+      "name": "หยุด",
+      "category": "การสื่อสาร",
+      "priority": 3,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "understand",
+      "name": "เข้าใจ",
+      "category": "การสื่อสาร",
+      "priority": 3,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "not_understand",
+      "name": "ไม่เข้าใจ",
+      "category": "การสื่อสาร",
+      "priority": 3,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ"
+    },
+    {
+      "id": "come",
+      "name": "มา",
+      "category": "การกระทำ",
+      "priority": 4,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "can",
+      "name": "ได้",
+      "category": "การกระทำ",
+      "priority": 4,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบความหมายตามบริบท"
+    },
+    {
+      "id": "go",
+      "name": "ไป",
+      "category": "การกระทำ",
+      "priority": 4,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "cannot",
+      "name": "ไม่ได้",
+      "category": "การกระทำ",
+      "priority": 4,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ"
+    },
+    {
+      "id": "where",
+      "name": "ที่ไหน",
+      "category": "สุขภาพและคำถาม",
+      "priority": 5,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "sick",
+      "name": "ป่วย",
+      "category": "สุขภาพและคำถาม",
+      "priority": 5,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "medicine",
+      "name": "ยา",
+      "category": "สุขภาพและคำถาม",
+      "priority": 5,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบรูปแบบภาษามือไทย"
+    },
+    {
+      "id": "not_want",
+      "name": "ไม่ต้องการ",
+      "category": "สุขภาพและคำถาม",
+      "priority": 5,
+      "reference_url": "",
+      "status": "planned",
+      "notes": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ"
+    }
   ]
 }

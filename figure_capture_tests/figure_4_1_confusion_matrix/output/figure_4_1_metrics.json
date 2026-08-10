@@ -1,0 +1,50 @@
+{
+  "dataset": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\gesture_sequences.npz",
+  "shape": [
+    120,
+    30,
+    171
+  ],
+  "classes": [
+    "ขอบคุณ",
+    "ขอโทษ",
+    "สวัสดี",
+    "ไม่เป็นไร"
+  ],
+  "counts": {
+    "ขอบคุณ": 30,
+    "ขอโทษ": 30,
+    "สวัสดี": 30,
+    "ไม่เป็นไร": 30
+  },
+  "split": "80:20 stratified, random_state=42",
+  "test_samples": 24,
+  "accuracy": 1.0,
+  "confusion_matrix": [
+    [
+      6,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      6,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      6,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      6
+    ]
+  ],
+  "model_written": false
+}

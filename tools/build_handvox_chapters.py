@@ -446,7 +446,7 @@ def add_figure(doc, image_path, caption):
     p.paragraph_format.keep_with_next = True
     shape = p.add_run().add_picture(str(image_path), width=Cm(14.4))
     shape._inline.docPr.set("descr", caption)
-    shape._inline.docPr.set("title", "แผนภาพสถาปัตยกรรม HandVox")
+    shape._inline.docPr.set("title", caption)
     cap = doc.add_paragraph(style="Caption")
     set_run_font(cap.add_run(caption), 14)
 
@@ -774,11 +774,10 @@ def build_chapter_3():
     ], [2.0, 6.0, 6.65], caption="ตารางที่ 3.2 ความต้องการที่ไม่ใช่เชิงหน้าที่", font_size=13)
 
     add_heading(doc, "3.3 สถาปัตยกรรมระบบ")
-    add_image_placeholder(
+    add_figure(
         doc,
+        ASSETS / "handvox_architecture.png",
         "ภาพที่ 3.1 สถาปัตยกรรมการประมวลผลของ HandVox",
-        "ผังงาน 6 ขั้นจากเว็บแคม → MediaPipe Holistic → ปรับมาตรฐาน 171 ค่า/เฟรม → หน้าต่าง 30 เฟรม → SVM แบบ RBF → ข้อความ/ประโยค/เสียง",
-        height_lines=7,
     )
     add_body(doc, "สถาปัตยกรรมแบ่งเป็น 6 ส่วน ได้แก่ การรับภาพ การตรวจหาจุด การปรับมาตรฐาน การสะสมลำดับ 30 เฟรม การจำแนกด้วย SVM และการนำเสนอผล กระบวนการเก็บข้อมูลและกระบวนการใช้งานจริงเรียกใช้ body_features.extract_features ร่วมกัน จึงลดความเสี่ยงที่รูปแบบคุณลักษณะระหว่างฝึกและทำนายไม่ตรงกัน")
     add_table(doc, ["ไฟล์", "หน้าที่หลัก", "ข้อมูลเข้า/ออก"], [
@@ -988,11 +987,10 @@ def build_chapter_4():
         ["สร้างประโยค", "เพิ่ม ลบ ล้าง และอ่านคำที่สะสม", "Space, Backspace, Enter, S"],
         ["เพิ่ม/ลบท่า", "จัดการรายการ เก็บคลิป สำรอง และฝึกใหม่", "เมนูและไฟล์ BAT"],
     ], [3.4, 6.5, 4.75], caption="ตารางที่ 4.6 ผลการพัฒนาความสามารถของระบบ", font_size=13)
-    add_image_placeholder(
+    add_figure(
         doc,
-        "ภาพที่ 4.2 หน้าจอ HandVox ขณะรู้จำท่าทางแบบเวลาจริง",
-        "ภาพหน้าจอจริงที่เห็นผู้ใช้ กรอบช่วงบน ชื่อหนึ่งใน 4 ท่า ค่าความเชื่อมั่น แถบค้างท่า ประโยค และสถานะ Auto TTS โดยปกปิดข้อมูลส่วนบุคคลหากจำเป็น",
-        height_lines=7,
+        ROOT / "qa" / "gui_dashboard_final.png",
+        "ภาพที่ 4.2 หน้าจอภาพรวมและสถานะความพร้อมของระบบ HandVox",
     )
     add_body(doc, "ผลด้านส่วนติดต่อข้างต้นเป็นหลักฐานจากโค้ดและไฟล์กำหนดค่า ยังไม่มีบันทึกการทดสอบภาคสนาม เช่น FPS เฉลี่ย เวลาแฝง อัตราความผิดพลาดต่อเนื่อง ความสำเร็จของ TTS หรือความพึงพอใจของผู้ใช้ จึงไม่นำค่าดังกล่าวมารายงานโดยคาดเดา")
 
