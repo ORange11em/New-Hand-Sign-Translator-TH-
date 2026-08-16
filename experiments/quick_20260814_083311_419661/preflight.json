@@ -1,0 +1,48 @@
+{
+  "ready": true,
+  "generated_at": "2026-08-14T08:33:11+07:00",
+  "accepted_clips": 210,
+  "expected_target_clips": 210,
+  "items": [
+    {
+      "status": "ok",
+      "code": "quick_ready",
+      "message": "พร้อมเทรนทดลองด่วน — ผลที่ได้เป็นผลเบื้องต้นและเปิดกล้องทดสอบจริงได้"
+    },
+    {
+      "status": "ok",
+      "code": "base_dataset_ready",
+      "message": "ใช้ข้อมูลฐานคำเดิมได้ 190 คลิป — ไม่ต้องถ่ายคำเดิมซ้ำ"
+    },
+    {
+      "status": "ok",
+      "code": "sequence_valid",
+      "message": "ไฟล์ sequence ผ่านการตรวจ 20 คลิป"
+    },
+    {
+      "status": "ok",
+      "code": "quick_target_ready",
+      "message": "คำว่า น้ำ: ใช้ accepted 20 คลิปสำหรับทดลองด่วน"
+    }
+  ],
+  "inventory": [
+    {
+      "gesture_name": "น้ำ",
+      "signer_id": "person_01",
+      "accepted": 10,
+      "pending": 0,
+      "rejected": 0,
+      "total": 10,
+      "sessions": 2
+    },
+    {
+      "gesture_name": "น้ำ",
+      "signer_id": "person_02",
+      "accepted": 10,
+      "pending": 0,
+      "rejected": 0,
+      "total": 10,
+      "sessions": 2
+    }
+  ]
+}

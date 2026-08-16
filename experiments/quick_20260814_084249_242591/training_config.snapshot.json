@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "project_name": "HandVox 16 Gestures MVP — เพิ่มคำ เข้าใจ — ทดลองด่วน",
+  "visible_gestures": [
+    "สวัสดี",
+    "ขอโทษ",
+    "ไม่เป็นไร",
+    "ขอบคุณ",
+    "ใช่",
+    "ไม่ใช่",
+    "ช่วยด้วย",
+    "ห้องน้ำ",
+    "น้ำ",
+    "เข้าใจ",
+    "ไม่เข้าใจ",
+    "ต้องการ"
+  ],
+  "internal_classes": [],
+  "critical_gestures": [],
+  "collection": {
+    "signers": [
+      "person_01",
+      "person_02"
+    ],
+    "sessions": [
+      "session_01",
+      "session_02"
+    ],
+    "target_clips_per_signer_per_class": 10,
+    "minimum_accepted_per_signer_per_class": 8,
+    "sequence_length": 30,
+    "save_preview_video": true
+  },
+  "training": {
+    "algorithm": "SVC",
+    "parameters": {
+      "kernel": "rbf",
+      "C": 10.0,
+      "gamma": "scale",
+      "probability": true,
+      "class_weight": "balanced"
+    },
+    "evaluation_strategy": "stratified_holdout",
+    "random_seed": 42
+  },
+  "acceptance": {
+    "minimum_accuracy": 0.7,
+    "minimum_macro_f1": 0.7,
+    "minimum_class_recall": 0.5,
+    "minimum_critical_recall": 0.75,
+    "maximum_neutral_false_positive_rate": 0.2
+  },
+  "target_gesture": "เข้าใจ",
+  "mode": "quick_trial"
+}

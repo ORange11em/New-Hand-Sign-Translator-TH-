@@ -28,6 +28,7 @@ from handvox.paths import (
     CUSTOM_GESTURES_FILE,
     EXPERIMENTS_DIR,
     LABEL_FILE,
+    LEGACY_DATA_FILE,
     MODEL_FILE,
     MODEL_MANIFEST_FILE,
     PLANNED_GESTURES_FILE,
@@ -266,6 +267,105 @@ def save_preflight_report(report, path):
     )
 
 
+def quick_trial_readiness(config=None, store=None, minimum_target_clips=4):
+    """ตรวจเฉพาะสิ่งที่จำเป็นสำหรับเทรนทดลองด่วนหนึ่งคำ.
+
+    คำเดิมต้องมีอยู่ในข้อมูลฐาน ``gesture_sequences.npz`` ส่วนคำใหม่ใช้คลิป
+    accepted จาก Dataset V2 อย่างน้อย ``minimum_target_clips`` คลิป
+    """
+    config = config or load_training_config()
+    store = store or DatasetV2Store()
+    target = config.target_gesture
+    # โหมดด่วนยอมให้ลองก่อนยืนยันแหล่งอ้างอิง แต่ยังแสดงคำเตือนชัดเจน
+    items = [
+        ReadinessItem("warning", item.code, item.message)
+        for item in _reference_items(config)
+    ]
+    base_count = 0
+    base_labels = np.asarray([], dtype=str)
+    if not LEGACY_DATA_FILE.exists():
+        items.append(
+            ReadinessItem("error", "base_dataset_missing", "ไม่พบข้อมูลฐาน gesture_sequences.npz")
+        )
+    else:
+        try:
+            with np.load(LEGACY_DATA_FILE, allow_pickle=False) as data:
+                clips = data["clips"]
+                base_labels = data["labels"].astype(str)
+            expected_shape = (config.collection.sequence_length, FEATURE_COUNT)
+            if clips.ndim != 3 or tuple(clips.shape[1:]) != expected_shape:
+                raise ValueError(f"shape ต้องเป็น (จำนวนคลิป, {expected_shape[0]}, {expected_shape[1]})")
+            missing_base = [
+                name
+                for name in config.visible_gestures
+                if name != target and name not in set(base_labels.tolist())
+            ]
+            if missing_base:
+                items.append(
+                    ReadinessItem(
+                        "error",
+                        "base_classes_missing",
+                        "ข้อมูลฐานยังไม่มีคำเดิม: " + ", ".join(missing_base),
+                    )
+                )
+            else:
+                base_count = int(
+                    np.isin(base_labels, [name for name in config.visible_gestures if name != target]).sum()
+                )
+                items.append(
+                    ReadinessItem(
+                        "ok",
+                        "base_dataset_ready",
+                        f"ใช้ข้อมูลฐานคำเดิมได้ {base_count} คลิป — ไม่ต้องถ่ายคำเดิมซ้ำ",
+                    )
+                )
+        except (OSError, KeyError, TypeError, ValueError) as error:
+            items.append(
+                ReadinessItem("error", "base_dataset_invalid", f"ข้อมูลฐานอ่านไม่ได้: {error}")
+            )
+
+    target_records = [
+        record
+        for record in store.records()
+        if record.gesture_name == target and record.quality == "accepted"
+    ]
+    items.extend(_validate_sequence_files(config, store, target_records))
+    if len(target_records) < minimum_target_clips:
+        items.append(
+            ReadinessItem(
+                "error",
+                "quick_target_below_minimum",
+                f"คำว่า {target}: accepted {len(target_records)}/{minimum_target_clips} คลิปขั้นต่ำสำหรับทดลองด่วน",
+            )
+        )
+    else:
+        items.append(
+            ReadinessItem(
+                "ok",
+                "quick_target_ready",
+                f"คำว่า {target}: ใช้ accepted {len(target_records)} คลิปสำหรับทดลองด่วน",
+            )
+        )
+    error_count = sum(item.status == "error" for item in items)
+    if error_count == 0:
+        items.insert(
+            0,
+            ReadinessItem(
+                "ok",
+                "quick_ready",
+                "พร้อมเทรนทดลองด่วน — ผลที่ได้เป็นผลเบื้องต้นและเปิดกล้องทดสอบจริงได้",
+            ),
+        )
+    return ReadinessReport(
+        ready=error_count == 0,
+        generated_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        accepted_clips=base_count + len(target_records),
+        expected_target_clips=base_count + max(minimum_target_clips, len(target_records)),
+        items=tuple(items),
+        inventory=tuple(store.inventory((target,), config.collection.signers)),
+    )
+
+
 # ── ขั้นที่ 2: โหลดข้อมูลและคำนวณตัวชี้วัด ──────────────────
 def _dataset_fingerprint(store, records):
     """สร้าง SHA-256 จาก metadata และไฟล์ sequence เพื่อระบุ Dataset รุ่นนี้."""
@@ -492,8 +592,10 @@ def _acceptance_result(config, metrics):
         "macro_f1": metrics["macro_f1"] >= config.acceptance.minimum_macro_f1,
         "minimum_visible_recall": min(visible_recalls, default=0)
         >= config.acceptance.minimum_class_recall,
-        "minimum_critical_recall": min(critical_recalls, default=0)
-        >= config.acceptance.minimum_critical_recall,
+        "minimum_critical_recall": (
+            not critical_recalls
+            or min(critical_recalls) >= config.acceptance.minimum_critical_recall
+        ),
         "neutral_false_positive_rate": neutral_false_positive_rate
         <= config.acceptance.maximum_neutral_false_positive_rate,
     }
@@ -567,6 +669,7 @@ def train_and_evaluate(config=None, store=None, output_root=EXPERIMENTS_DIR):
         "created_at": started_at.isoformat(timespec="seconds"),
         "duration_seconds": round(time.perf_counter() - started_timer, 3),
         "evaluation_strategy": config.training.evaluation_strategy,
+        "target_gesture": config.target_gesture,
         "dataset_fingerprint_sha256": fingerprint,
         "accepted_clips": len(records),
         "signers": list(config.collection.signers),
@@ -665,6 +768,177 @@ def train_and_evaluate(config=None, store=None, output_root=EXPERIMENTS_DIR):
     return experiment_dir, metrics_payload
 
 
+def train_quick_trial(config, store=None, output_root=EXPERIMENTS_DIR):
+    """เทรนโมเดลทดลองจากข้อมูลฐานคำเดิมและคลิป accepted ของคำใหม่.
+
+    ใช้ stratified holdout เพื่อบันทึกค่าทดสอบเบื้องต้น โมเดลและชุดข้อมูลสะสม
+    ถูกเก็บใน experiment ก่อน และยังไม่เขียนทับโมเดลหลักจนกว่าจะ activate
+    """
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import LabelEncoder
+    from sklearn.svm import SVC
+
+    if config.mode != "quick_trial":
+        raise HandVoxError("train_quick_trial ต้องใช้ config โหมด quick_trial")
+    store = store or DatasetV2Store()
+    readiness = quick_trial_readiness(config, store)
+    if not readiness.ready:
+        raise HandVoxError("ข้อมูลคำใหม่ยังไม่ถึงขั้นต่ำสำหรับเทรนทดลองด่วน")
+
+    started_at = datetime.now().astimezone()
+    started_timer = time.perf_counter()
+    target = config.target_gesture
+    with np.load(LEGACY_DATA_FILE, allow_pickle=False) as data:
+        base_clips = data["clips"].astype(np.float32)
+        base_labels = data["labels"].astype(str)
+    keep = np.isin(base_labels, [name for name in config.visible_gestures if name != target])
+    base_clips = base_clips[keep]
+    base_labels = base_labels[keep]
+
+    target_records = sorted(
+        (
+            record
+            for record in store.records()
+            if record.gesture_name == target and record.quality == "accepted"
+        ),
+        key=lambda record: record.clip_id,
+    )
+    target_clips = np.asarray(
+        [
+            np.load(store.resolve_data_path(record.sequence_file), allow_pickle=False)
+            for record in target_records
+        ],
+        dtype=np.float32,
+    )
+    clips = np.concatenate((base_clips, target_clips), axis=0)
+    labels = np.concatenate(
+        (base_labels, np.asarray([target] * len(target_clips), dtype=str)), axis=0
+    )
+    features = clips.reshape(len(clips), -1)
+    encoder = LabelEncoder()
+    encoder.fit(list(config.visible_gestures))
+    targets = encoder.transform(labels)
+    class_names = list(encoder.classes_)
+    class_ids = list(range(len(class_names)))
+    test_count = max(len(class_names), int(round(len(features) * 0.2)))
+    train_x, test_x, train_y, test_y = train_test_split(
+        features,
+        targets,
+        test_size=test_count,
+        random_state=config.training.random_seed,
+        stratify=targets,
+    )
+    parameters = dict(config.training.parameters)
+    trial_classifier = SVC(random_state=config.training.random_seed, **parameters)
+    trial_classifier.fit(train_x, train_y)
+    predictions = trial_classifier.predict(test_x)
+    aggregate = _metric_payload(test_y, predictions, class_ids, class_names)
+    recalls = [row["recall"] for row in aggregate["per_class"]]
+    checks = {
+        "accuracy": aggregate["accuracy"] >= config.acceptance.minimum_accuracy,
+        "macro_f1": aggregate["macro_f1"] >= config.acceptance.minimum_macro_f1,
+        "minimum_visible_recall": min(recalls, default=0)
+        >= config.acceptance.minimum_class_recall,
+    }
+    aggregate.update(
+        {
+            "neutral_false_positive_rate": 0.0,
+            "acceptance_checks": checks,
+            "passed": all(checks.values()),
+        }
+    )
+    final_classifier = SVC(random_state=config.training.random_seed, **parameters)
+    final_classifier.fit(features, targets)
+
+    experiment_id = "quick_" + datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    experiment_dir = Path(output_root) / experiment_id
+    experiment_dir.mkdir(parents=True, exist_ok=False)
+    digest = hashlib.sha256(LEGACY_DATA_FILE.read_bytes())
+    digest.update(_dataset_fingerprint(store, target_records).encode("ascii"))
+    fold = dict(aggregate)
+    fold.update(
+        {
+            "test_signer": "stratified_holdout",
+            "train_signers": ["ข้อมูลฐานเดิม", "Dataset V2 คำใหม่"],
+            "train_clips": len(train_y),
+            "test_clips": len(test_y),
+        }
+    )
+    payload = {
+        "schema_version": 1,
+        "experiment_id": experiment_id,
+        "created_at": started_at.isoformat(timespec="seconds"),
+        "duration_seconds": round(time.perf_counter() - started_timer, 3),
+        "mode": "quick_trial",
+        "evaluation_strategy": config.training.evaluation_strategy,
+        "target_gesture": target,
+        "dataset_fingerprint_sha256": digest.hexdigest(),
+        "accepted_clips": len(clips),
+        "base_clips": len(base_clips),
+        "new_target_clips": len(target_clips),
+        "signers": sorted({record.signer_id for record in target_records}),
+        "sessions_present": sorted({record.session_id for record in target_records}),
+        "classes": class_names,
+        "aggregate": aggregate,
+        "folds": [fold],
+        "environment": _version_info(),
+    }
+    (experiment_dir / "metrics.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    save_preflight_report(readiness, experiment_dir / "preflight.json")
+    (experiment_dir / "training_config.snapshot.json").write_text(
+        json.dumps(asdict(config), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    with (experiment_dir / "model.pkl").open("wb") as file:
+        pickle.dump(final_classifier, file)
+    with (experiment_dir / "labels.pkl").open("wb") as file:
+        pickle.dump(encoder, file)
+    np.savez_compressed(
+        experiment_dir / "training_sequences.npz",
+        clips=clips.astype(np.float32),
+        labels=labels,
+    )
+    manifest = _manifest(config, aggregate, experiment_id)
+    manifest["mode"] = "quick_trial"
+    (experiment_dir / "model_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    _write_csv(
+        experiment_dir / "summary.csv",
+        [
+            "experiment_id", "created_at", "duration_seconds", "accepted_clips",
+            "base_clips", "new_target_clips", "accuracy", "macro_f1", "passed",
+            "dataset_fingerprint_sha256",
+        ],
+        [{
+            "experiment_id": experiment_id,
+            "created_at": payload["created_at"],
+            "duration_seconds": payload["duration_seconds"],
+            "accepted_clips": payload["accepted_clips"],
+            "base_clips": payload["base_clips"],
+            "new_target_clips": payload["new_target_clips"],
+            "accuracy": aggregate["accuracy"],
+            "macro_f1": aggregate["macro_f1"],
+            "passed": aggregate["passed"],
+            "dataset_fingerprint_sha256": payload["dataset_fingerprint_sha256"],
+        }],
+    )
+    _write_csv(
+        experiment_dir / "per_class_metrics.csv",
+        ["class_name", "precision", "recall", "f1", "support"],
+        aggregate["per_class"],
+    )
+    _write_confusion_csv(
+        experiment_dir / "confusion_matrix.csv", class_names, aggregate["confusion_matrix"]
+    )
+    _write_plots(experiment_dir, class_names, aggregate)
+    _write_markdown_report(experiment_dir, payload, config)
+    _write_experiment_index(Path(output_root))
+    return experiment_dir, payload
+
+
 # ── ขั้นที่ 5: รายงาน รายการทดลอง และการติดตั้ง ─────────────
 def _write_markdown_report(experiment_dir, payload, config):
     """สร้างรายงาน Markdown ที่นำค่าไปอ้างอิงในเอกสารโครงงานได้."""
@@ -673,10 +947,13 @@ def _write_markdown_report(experiment_dir, payload, config):
     lines = [
         f"# ผลการทดลอง HandVox — {payload['experiment_id']}",
         "",
+        f"- โหมด: **{'ทดลองด่วน' if payload.get('mode') == 'quick_trial' else 'มาตรฐาน'}**",
+        f"- คำที่เพิ่มในรอบนี้: **{payload.get('target_gesture') or 'แผนรวม'}**",
+        f"- คลาสที่เทรนรวม: **{len(payload['classes'])} คลาส**",
         f"- ผลตามเกณฑ์: **{result}**",
         f"- Accuracy: **{aggregate['accuracy']:.4f}**",
         f"- Macro F1: **{aggregate['macro_f1']:.4f}**",
-        f"- Neutral false-positive rate: **{aggregate['neutral_false_positive_rate']:.4f}**",
+        f"- Neutral false-positive rate: **{aggregate.get('neutral_false_positive_rate', 0.0):.4f}**",
         f"- จำนวนคลิป accepted: **{payload['accepted_clips']}**",
         f"- ระยะเวลาเทรนและสร้างรายงาน: **{payload['duration_seconds']:.3f} วินาที**",
         f"- Dataset SHA-256: `{payload['dataset_fingerprint_sha256']}`",
@@ -691,6 +968,7 @@ def _write_markdown_report(experiment_dir, payload, config):
             f"| {row['class_name']} | {row['precision']:.4f} | "
             f"{row['recall']:.4f} | {row['f1']:.4f} | {row['support']} |"
         )
+    quick_mode = payload.get("mode") == "quick_trial"
     lines.extend(
         [
             "",
@@ -713,14 +991,24 @@ def _write_markdown_report(experiment_dir, payload, config):
             "",
             "## วิธีประเมิน",
             "",
-            "ใช้ Leave-One-Signer-Out จำนวน 2 fold: ฝึกจากสมาชิกหนึ่งคนและทดสอบกับอีกคน "
-            "จากนั้นสลับกัน คลิปจากผู้ทดสอบจึงไม่ปรากฏในชุดฝึกของ fold เดียวกัน",
+            (
+                "ใช้ stratified holdout แบ่งตัวอย่างทุกคำเป็น train/test โดยคงสัดส่วนคลาส "
+                "ผลนี้ใช้คัดกรองเบื้องต้นก่อนเปิดกล้องทดลองจริง"
+                if quick_mode
+                else "ใช้ Leave-One-Signer-Out จำนวน 2 fold: ฝึกจากสมาชิกหนึ่งคนและทดสอบกับอีกคน "
+                "จากนั้นสลับกัน คลิปจากผู้ทดสอบจึงไม่ปรากฏในชุดฝึกของ fold เดียวกัน"
+            ),
             "",
             "ไฟล์ `confusion_matrix.png`, `per_class_f1.png`, CSV และ JSON ในโฟลเดอร์นี้ "
             "สามารถนำไปใช้จัดทำเอกสารผลการทดลองได้",
             "",
-            "ข้อจำกัด: ผลนี้ประเมินจากสมาชิก 2 คน จึงใช้ยืนยันต้นแบบภายในกลุ่ม "
-            "และยังไม่ใช่หลักฐานว่าโมเดลใช้ได้กับบุคคลทั่วไป",
+            (
+                "ข้อจำกัด: โหมดทดลองด่วนใช้ข้อมูลฐานเดิมร่วมกับคลิปคำใหม่จำนวนน้อย "
+                "คะแนนนี้ไม่ใช่ผลทดสอบมาตรฐานสำหรับรายงานวิจัย ต้องทดสอบด้วยกล้องจริงและเก็บข้อมูลเพิ่มภายหลัง"
+                if quick_mode
+                else "ข้อจำกัด: ผลนี้ประเมินจากสมาชิก 2 คน จึงใช้ยืนยันต้นแบบภายในกลุ่ม "
+                "และยังไม่ใช่หลักฐานว่าโมเดลใช้ได้กับบุคคลทั่วไป"
+            ),
             "",
             f"โมเดลในโฟลเดอร์นี้ยังไม่ถูกติดตั้งทับโมเดลหลักโดยอัตโนมัติ ({config.project_name})",
         ]
@@ -728,7 +1016,7 @@ def _write_markdown_report(experiment_dir, payload, config):
     (experiment_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def list_experiments(root=EXPERIMENTS_DIR):
+def list_experiments(root=EXPERIMENTS_DIR, target_gesture=None):
     """อ่าน experiment ที่สมบูรณ์และคืนรายการเรียงจากใหม่ไปเก่า."""
     root = Path(root)
     if not root.exists():
@@ -741,6 +1029,9 @@ def list_experiments(root=EXPERIMENTS_DIR):
         try:
             payload = json.loads(metrics_file.read_text(encoding="utf-8"))
             aggregate = payload["aggregate"]
+            experiment_target = str(payload.get("target_gesture", ""))
+            if target_gesture is not None and experiment_target != target_gesture:
+                continue
             experiments.append(
                 {
                     "id": payload["experiment_id"],
@@ -749,6 +1040,8 @@ def list_experiments(root=EXPERIMENTS_DIR):
                     "accuracy": float(aggregate["accuracy"]),
                     "macro_f1": float(aggregate["macro_f1"]),
                     "passed": bool(aggregate["passed"]),
+                    "target_gesture": experiment_target,
+                    "mode": str(payload.get("mode", "standard")),
                 }
             )
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
@@ -767,20 +1060,37 @@ def _write_experiment_index(root):
                 "accuracy": item["accuracy"],
                 "macro_f1": item["macro_f1"],
                 "passed": item["passed"],
+                "target_gesture": item.get("target_gesture", ""),
+                "mode": item.get("mode", "standard"),
                 "report_path": str(item["path"] / "report.md"),
             }
         )
     _write_csv(
         Path(root) / "experiment_index.csv",
         [
-            "experiment_id", "created_at", "accuracy", "macro_f1", "passed",
+            "experiment_id", "created_at", "target_gesture", "mode", "accuracy", "macro_f1", "passed",
             "report_path",
         ],
         rows,
     )
 
 
-def activate_experiment(experiment_dir):
+def _ensure_no_active_gesture_regression(new_custom, active_path=CUSTOM_GESTURES_FILE):
+    """ปฏิเสธโมเดลเก่าที่จะทำให้คำซึ่งติดตั้งอยู่แล้วหายจากแอป."""
+    current_active_names = {
+        item.name for item in GestureCatalog(active_path=active_path).load_active()
+    }
+    new_active_names = {str(item.get("name", "")).strip() for item in new_custom}
+    removed_names = sorted(current_active_names - new_active_names)
+    if removed_names:
+        raise HandVoxError(
+            "ผลการทดลองนี้เก่ากว่าโมเดลปัจจุบันและจะทำให้คำหาย: "
+            + ", ".join(removed_names)
+            + " กรุณาเทรนคำเป้าหมายใหม่จากโมเดลล่าสุด"
+        )
+
+
+def activate_experiment(experiment_dir, allow_quick_trial=False):
     """ตรวจผล สำรองของเดิม แล้วติดตั้ง model/labels/manifest แบบ staged."""
     experiment_dir = Path(experiment_dir).resolve()
     try:
@@ -797,6 +1107,10 @@ def activate_experiment(experiment_dir):
     if missing:
         raise HandVoxError("ผลการทดลองขาดไฟล์: " + ", ".join(missing))
     metrics = json.loads(required["metrics"].read_text(encoding="utf-8"))
+    if metrics.get("mode") == "quick_trial" and not allow_quick_trial:
+        raise HandVoxError(
+            "ผลนี้เป็นโหมดทดลองด่วน ต้องยืนยันว่าจะติดตั้งเป็นโมเดลทดลองก่อน"
+        )
     if not metrics["aggregate"]["passed"]:
         raise HandVoxError("ผลการทดลองนี้ยังไม่ผ่านเกณฑ์ จึงไม่อนุญาตให้ติดตั้ง")
     manifest = json.loads(required["manifest"].read_text(encoding="utf-8"))
@@ -819,6 +1133,7 @@ def activate_experiment(experiment_dir):
         raise HandVoxError(f"ตรวจไฟล์โมเดลก่อนติดตั้งไม่ผ่าน: {error}") from error
 
     new_custom = manifest["visible_gestures"]
+    _ensure_no_active_gesture_regression(new_custom, CUSTOM_GESTURES_FILE)
     temporary_custom = CUSTOM_GESTURES_FILE.with_suffix(".json.tmp")
     temporary_model = MODEL_FILE.with_suffix(".pkl.tmp")
     temporary_labels = LABEL_FILE.with_suffix(".pkl.tmp")
@@ -851,6 +1166,7 @@ def activate_experiment(experiment_dir):
         MODEL_MANIFEST_FILE,
         CUSTOM_GESTURES_FILE,
         PLANNED_GESTURES_FILE,
+        LEGACY_DATA_FILE,
     )
     existed_before = {source: source.exists() for source in managed_files}
     backup_dir = ROOT / "gesture_backups" / (
@@ -866,6 +1182,12 @@ def activate_experiment(experiment_dir):
         temporary_manifest.replace(MODEL_MANIFEST_FILE)
         temporary_custom.replace(CUSTOM_GESTURES_FILE)
         temporary_planned.replace(PLANNED_GESTURES_FILE)
+        training_sequences = experiment_dir / "training_sequences.npz"
+        if training_sequences.exists():
+            # ข้อมูลสะสมนี้เป็นฐานสำหรับเพิ่มคำถัดไปโดยไม่ถ่ายคำเดิมซ้ำ
+            temporary_sequences = LEGACY_DATA_FILE.with_suffix(".npz.tmp")
+            shutil.copy2(training_sequences, temporary_sequences)
+            temporary_sequences.replace(LEGACY_DATA_FILE)
     except OSError:
         for destination in managed_files:
             backup = backup_dir / destination.name

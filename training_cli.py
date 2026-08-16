@@ -5,12 +5,21 @@ from pathlib import Path
 
 from handvox.errors import HandVoxError
 from handvox.paths import EXPERIMENTS_DIR
+from handvox.gesture_catalog import GestureCatalog
+from handvox.training_config import (
+    build_incremental_training_config,
+    build_quick_trial_config,
+    incremental_targets,
+    load_training_config,
+)
 from handvox.training_workflow import (
     activate_experiment,
     list_experiments,
     preflight,
+    quick_trial_readiness,
     save_preflight_report,
     train_and_evaluate,
+    train_quick_trial,
 )
 
 
@@ -30,9 +39,24 @@ def print_preflight(report):
         print(f"[{STATUS_LABELS.get(item.status, item.status)}] {item.message}")
 
 
-def command_status():
+def round_config(target):
+    """สร้าง config รอบปัจจุบันจากคำเดิมในโมเดลและคำใหม่หนึ่งคำ."""
+    if not target:
+        return load_training_config()
+    catalog = GestureCatalog()
+    active_names = [item.name for item in catalog.load_active()]
+    planned_names = [item.name for item in catalog.load_planned()]
+    return build_incremental_training_config(
+        target,
+        active_names=active_names,
+        planned_names=planned_names,
+    )
+
+
+def command_status(target=None):
     """ตรวจและบันทึก preflight_latest.json โดยไม่เริ่มเทรน."""
-    report = preflight()
+    config = round_config(target)
+    report = preflight(config)
     EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
     output = EXPERIMENTS_DIR / "preflight_latest.json"
     save_preflight_report(report, output)
@@ -41,9 +65,10 @@ def command_status():
     return 0 if report.ready else 2
 
 
-def command_train():
+def command_train(target=None):
     """หยุดเมื่อข้อมูลไม่พร้อม มิฉะนั้นสร้าง experiment และรายงานใหม่."""
-    report = preflight()
+    config = round_config(target)
+    report = preflight(config)
     EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
     save_preflight_report(report, EXPERIMENTS_DIR / "preflight_latest.json")
     print_preflight(report)
@@ -51,13 +76,41 @@ def command_train():
         print("\nยังไม่เริ่มเทรน เพราะมีรายการที่ต้องแก้")
         return 2
     print("\nกำลังเทรนและประเมินแบบสลับสมาชิก 2 คน...")
-    experiment_dir, payload = train_and_evaluate()
+    experiment_dir, payload = train_and_evaluate(config=config)
     aggregate = payload["aggregate"]
     print(f"Accuracy : {aggregate['accuracy']:.4f}")
     print(f"Macro F1: {aggregate['macro_f1']:.4f}")
     print(f"ผลเกณฑ์ : {'ผ่าน' if aggregate['passed'] else 'ยังไม่ผ่าน'}")
     print(f"รายงาน   : {experiment_dir}")
     print("โมเดลหลักยังไม่ถูกเขียนทับ")
+    return 0
+
+
+def command_quick_train(target):
+    """เทรนคำใหม่ทันทีจากข้อมูลฐานเดิม และสร้างโมเดลทดลองสำหรับเปิดกล้อง."""
+    catalog = GestureCatalog()
+    active_names = [item.name for item in catalog.load_active()]
+    planned_names = [item.name for item in catalog.load_planned()]
+    config = build_quick_trial_config(
+        target,
+        active_names=active_names,
+        planned_names=planned_names,
+    )
+    report = quick_trial_readiness(config)
+    EXPERIMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    save_preflight_report(report, EXPERIMENTS_DIR / "quick_preflight_latest.json")
+    print_preflight(report)
+    if not report.ready:
+        print("\nยังเทรนด่วนไม่ได้ — เก็บและกดยอมรับคลิปคำใหม่อย่างน้อย 4 คลิปก่อน")
+        return 2
+    print("\nกำลังเทรนทดลองด่วนจากข้อมูลฐานเดิม + คำใหม่...")
+    experiment_dir, payload = train_quick_trial(config)
+    aggregate = payload["aggregate"]
+    print(f"Accuracy : {aggregate['accuracy']:.4f}")
+    print(f"Macro F1: {aggregate['macro_f1']:.4f}")
+    print(f"ผลเกณฑ์ : {'ผ่าน' if aggregate['passed'] else 'ยังไม่ผ่าน'}")
+    print(f"รายงาน   : {experiment_dir}")
+    print("หากผ่าน ให้ติดตั้งผลแบบทดลอง แล้วเปิดกล้องทดสอบจริง")
     return 0
 
 
@@ -76,7 +129,19 @@ def command_list():
     return 0
 
 
-def command_activate(experiment, confirmed):
+def command_targets():
+    """แสดงคำที่ยังเพิ่มได้ทีละคำและขอบเขตรอบแรกโดยสรุป."""
+    config = load_training_config()
+    catalog = GestureCatalog()
+    active_names = [item.name for item in catalog.load_active()]
+    planned_names = [item.name for item in catalog.load_planned()]
+    targets = incremental_targets(config, active_names, planned_names)
+    print("คำที่อยู่ในโมเดล:", ", ".join(active_names) or "ยังไม่มี")
+    print("คำที่ยังเพิ่มได้:", ", ".join(targets) or "ครบแผนแล้ว")
+    return 0
+
+
+def command_activate(experiment, confirmed, allow_quick_trial=False):
     """ขอยืนยันก่อนสำรองโมเดลเดิมและติดตั้ง experiment ที่ผ่านเกณฑ์."""
     directory = Path(experiment)
     if not directory.is_absolute():
@@ -88,7 +153,7 @@ def command_activate(experiment, confirmed):
         if answer != "ACTIVATE":
             print("ยกเลิก")
             return 1
-    backup = activate_experiment(directory)
+    backup = activate_experiment(directory, allow_quick_trial=allow_quick_trial)
     print(f"ติดตั้งโมเดลแล้ว สำรองของเดิมไว้ที่ {backup}")
     return 0
 
@@ -97,21 +162,39 @@ def main():
     """แยกคำสั่ง status/train/list/activate และแปลงข้อผิดพลาดเป็น exit code."""
     parser = argparse.ArgumentParser(description="HandVox V2 training workflow")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("status", help="ตรวจความพร้อมโดยไม่เทรน")
-    subparsers.add_parser("train", help="ตรวจข้อมูล เทรน วัดผล และสร้างรายงาน")
+    status = subparsers.add_parser("status", help="ตรวจความพร้อมโดยไม่เทรน")
+    status.add_argument("--target", help="คำใหม่หนึ่งคำสำหรับรอบเพิ่มทีละคำ")
+    train = subparsers.add_parser("train", help="ตรวจข้อมูล เทรน วัดผล และสร้างรายงาน")
+    train.add_argument("--target", help="คำใหม่หนึ่งคำสำหรับรอบเพิ่มทีละคำ")
+    quick_train = subparsers.add_parser(
+        "quick-train", help="เทรนคำใหม่ทันทีจากข้อมูลฐานเดิมสำหรับทดสอบกล้อง"
+    )
+    quick_train.add_argument("--target", required=True, help="คำใหม่หนึ่งคำ")
     subparsers.add_parser("list", help="แสดงผลการทดลองที่ผ่านมา")
+    subparsers.add_parser("targets", help="แสดงคำที่ยังเลือกเพิ่มทีละคำได้")
     activate = subparsers.add_parser("activate", help="ติดตั้งโมเดลที่ผ่านเกณฑ์")
     activate.add_argument("experiment", help="รหัสหรือ path ของผลการทดลอง")
     activate.add_argument("--yes", action="store_true", help="ยืนยันจาก workflow ภายนอก")
+    activate.add_argument(
+        "--allow-quick-trial",
+        action="store_true",
+        help="ยืนยันการติดตั้งผลโหมดทดลองด่วน",
+    )
     args = parser.parse_args()
     try:
         if args.command == "status":
-            return command_status()
+            return command_status(args.target)
         if args.command == "train":
-            return command_train()
+            return command_train(args.target)
+        if args.command == "quick-train":
+            return command_quick_train(args.target)
         if args.command == "list":
             return command_list()
-        return command_activate(args.experiment, args.yes)
+        if args.command == "targets":
+            return command_targets()
+        return command_activate(
+            args.experiment, args.yes, args.allow_quick_trial
+        )
     except HandVoxError as error:
         print(f"ไม่สำเร็จ: {error}")
         return 2

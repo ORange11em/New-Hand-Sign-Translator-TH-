@@ -79,6 +79,13 @@
 6. `_write_*` บันทึก JSON, CSV, Markdown และกราฟลงโฟลเดอร์ experiment ใหม่
 7. `activate_experiment` ตรวจและสำรองโมเดลเดิมก่อนติดตั้งผลที่ผ่านเกณฑ์
 
+โหมดเพิ่มทีละคำใช้ `build_incremental_training_config` สร้าง config ชั่วคราวจาก
+คำในโมเดลปัจจุบันทั้งหมด + คำเป้าหมายหนึ่งคำ + `neutral` และเพิ่มคำต่อเนื่องได้
+
+โหมดทดลองด่วนใช้ `build_quick_trial_config`, `quick_trial_readiness` และ
+`train_quick_trial` เพื่อรวม `gesture_sequences.npz` กับคลิป accepted ของคำใหม่
+สร้าง experiment แบบ `quick_trial` และต้องส่ง `allow_quick_trial=True` เมื่อติดตั้ง
+
 ## ชุดทดสอบ `tests/`
 
 | ไฟล์ | สิ่งที่ทดสอบ |
@@ -105,7 +112,7 @@
 
 ## ไฟล์กำหนดค่าและข้อมูล
 
-- `training_config.json` กำหนด 16 ท่า, neutral, สมาชิก, session, โมเดล และเกณฑ์ผ่าน
+- `training_config.json` กำหนดคำตั้งต้น, neutral, สมาชิก, session, โมเดล และเกณฑ์ผ่าน
 - `custom_gestures.json` คือคำที่โมเดลปัจจุบันใช้งานได้
 - `planned_gestures.json` คือคำที่ยังเป็นแผนและยังทำนายไม่ได้
 - `settings.json` คือค่าที่ผู้ใช้บันทึกจาก GUI

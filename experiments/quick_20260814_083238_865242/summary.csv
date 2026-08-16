@@ -1,0 +1,2 @@
+﻿experiment_id,created_at,duration_seconds,accepted_clips,base_clips,new_target_clips,accuracy,macro_f1,passed,dataset_fingerprint_sha256
+quick_20260814_083238_865242,2026-08-14T08:32:38+07:00,0.282,190,170,20,1.0,1.0,True,407f8e1ac9be68aaf00a30895c5875f80935c5e77835b9f8f0138355897dc6f3

@@ -1,0 +1,664 @@
+{
+  "schema_version": 1,
+  "experiment_id": "quick_20260814_090850_851564",
+  "created_at": "2026-08-14T09:08:50+07:00",
+  "duration_seconds": 0.652,
+  "mode": "quick_trial",
+  "evaluation_strategy": "stratified_holdout",
+  "target_gesture": "เข้าใจ",
+  "dataset_fingerprint_sha256": "3eaaaa467f2c46bca4fdb386e6230bccee2bc9cadb7c692c5a51d0145a60c472",
+  "accepted_clips": 290,
+  "base_clips": 270,
+  "new_target_clips": 20,
+  "signers": [
+    "person_01",
+    "person_02"
+  ],
+  "sessions_present": [
+    "session_01",
+    "session_02"
+  ],
+  "classes": [
+    "กิน",
+    "ขอบคุณ",
+    "ขอโทษ",
+    "ช่วยด้วย",
+    "น้ำ",
+    "สวัสดี",
+    "หมอ",
+    "ห้องน้ำ",
+    "เข้าใจ",
+    "เจ็บ",
+    "ใช่",
+    "ไม่เป็นไร",
+    "ไม่ใช่"
+  ],
+  "aggregate": {
+    "accuracy": 0.9827586206896551,
+    "macro_precision": 0.9846153846153847,
+    "macro_recall": 0.9807692307692307,
+    "macro_f1": 0.9804639804639805,
+    "weighted_precision": 0.9862068965517242,
+    "weighted_recall": 0.9827586206896551,
+    "weighted_f1": 0.9824849480021894,
+    "per_class": [
+      {
+        "class_name": "กิน",
+        "precision": 0.8,
+        "recall": 1.0,
+        "f1": 0.8888888888888888,
+        "support": 4
+      },
+      {
+        "class_name": "ขอบคุณ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ขอโทษ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ช่วยด้วย",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "น้ำ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "สวัสดี",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "หมอ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "ห้องน้ำ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "เข้าใจ",
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428571428571,
+        "support": 4
+      },
+      {
+        "class_name": "เจ็บ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "ใช่",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "ไม่เป็นไร",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ไม่ใช่",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 2
+      }
+    ],
+    "confusion_matrix": [
+      [
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ]
+    ],
+    "neutral_false_positive_rate": 0.0,
+    "acceptance_checks": {
+      "accuracy": true,
+      "macro_f1": true,
+      "minimum_visible_recall": true
+    },
+    "passed": true
+  },
+  "folds": [
+    {
+      "accuracy": 0.9827586206896551,
+      "macro_precision": 0.9846153846153847,
+      "macro_recall": 0.9807692307692307,
+      "macro_f1": 0.9804639804639805,
+      "weighted_precision": 0.9862068965517242,
+      "weighted_recall": 0.9827586206896551,
+      "weighted_f1": 0.9824849480021894,
+      "per_class": [
+        {
+          "class_name": "กิน",
+          "precision": 0.8,
+          "recall": 1.0,
+          "f1": 0.8888888888888888,
+          "support": 4
+        },
+        {
+          "class_name": "ขอบคุณ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ขอโทษ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ช่วยด้วย",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "น้ำ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "สวัสดี",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "หมอ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "ห้องน้ำ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "เข้าใจ",
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1": 0.8571428571428571,
+          "support": 4
+        },
+        {
+          "class_name": "เจ็บ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "ใช่",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "ไม่เป็นไร",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ไม่ใช่",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 2
+        }
+      ],
+      "confusion_matrix": [
+        [
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          6,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ]
+      ],
+      "neutral_false_positive_rate": 0.0,
+      "acceptance_checks": {
+        "accuracy": true,
+        "macro_f1": true,
+        "minimum_visible_recall": true
+      },
+      "passed": true,
+      "test_signer": "stratified_holdout",
+      "train_signers": [
+        "ข้อมูลฐานเดิม",
+        "Dataset V2 คำใหม่"
+      ],
+      "train_clips": 232,
+      "test_clips": 58
+    }
+  ],
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "numpy": "2.4.2",
+    "scikit_learn": "1.8.0",
+    "git_commit": "d272906196728959d2b398d5b6e4d352730c89ae"
+  }
+}

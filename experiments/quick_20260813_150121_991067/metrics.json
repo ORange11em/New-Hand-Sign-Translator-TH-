@@ -1,0 +1,224 @@
+{
+  "schema_version": 1,
+  "experiment_id": "quick_20260813_150121_991067",
+  "created_at": "2026-08-13T15:01:21+07:00",
+  "duration_seconds": 0.141,
+  "mode": "quick_trial",
+  "evaluation_strategy": "stratified_holdout",
+  "target_gesture": "ใช่",
+  "dataset_fingerprint_sha256": "d62f4ae0626fbf4c910959350a045553877cab20d433a21e52a17be306f647fc",
+  "accepted_clips": 140,
+  "base_clips": 120,
+  "new_target_clips": 20,
+  "signers": [
+    "person_01",
+    "person_02"
+  ],
+  "sessions_present": [
+    "session_01",
+    "session_02"
+  ],
+  "classes": [
+    "ขอบคุณ",
+    "ขอโทษ",
+    "สวัสดี",
+    "ใช่",
+    "ไม่เป็นไร"
+  ],
+  "aggregate": {
+    "accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0,
+    "weighted_precision": 1.0,
+    "weighted_recall": 1.0,
+    "weighted_f1": 1.0,
+    "per_class": [
+      {
+        "class_name": "ขอบคุณ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ขอโทษ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "สวัสดี",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ใช่",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "ไม่เป็นไร",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      }
+    ],
+    "confusion_matrix": [
+      [
+        6,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        6,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        6,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        6
+      ]
+    ],
+    "neutral_false_positive_rate": 0.0,
+    "acceptance_checks": {
+      "accuracy": true,
+      "macro_f1": true,
+      "minimum_visible_recall": true
+    },
+    "passed": true
+  },
+  "folds": [
+    {
+      "accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "weighted_precision": 1.0,
+      "weighted_recall": 1.0,
+      "weighted_f1": 1.0,
+      "per_class": [
+        {
+          "class_name": "ขอบคุณ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ขอโทษ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "สวัสดี",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ใช่",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "ไม่เป็นไร",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        }
+      ],
+      "confusion_matrix": [
+        [
+          6,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          6,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          6,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          4,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          6
+        ]
+      ],
+      "neutral_false_positive_rate": 0.0,
+      "acceptance_checks": {
+        "accuracy": true,
+        "macro_f1": true,
+        "minimum_visible_recall": true
+      },
+      "passed": true,
+      "test_signer": "stratified_holdout",
+      "train_signers": [
+        "ข้อมูลฐานเดิม",
+        "Dataset V2 คำใหม่"
+      ],
+      "train_clips": 112,
+      "test_clips": 28
+    }
+  ],
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "numpy": "1.26.4",
+    "scikit_learn": "1.3.2",
+    "git_commit": "d272906196728959d2b398d5b6e4d352730c89ae"
+  }
+}

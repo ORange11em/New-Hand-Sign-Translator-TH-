@@ -9,6 +9,12 @@ from handvox.paths import CUSTOM_GESTURES_FILE, PLANNED_GESTURES_FILE
 
 
 PLANNED_STATUSES = ("planned", "verified", "collected", "trained")
+PLANNED_STATUS_LABELS = {
+    "planned": "วางแผน",
+    "verified": "ยืนยันแล้ว",
+    "collected": "เก็บข้อมูลแล้ว",
+    "trained": "เทรนแล้ว",
+}
 
 
 @dataclass(frozen=True)
@@ -74,6 +80,19 @@ class PlannedGesture:
         return gesture.validate()
 
 
+@dataclass(frozen=True)
+class GesturePlanItem:
+    """หนึ่งแถวในคลังคำศัพท์รวม ทั้งคำที่ใช้งานแล้วและคำที่รอเพิ่ม."""
+
+    key: str
+    name: str
+    category: str
+    priority: str
+    status: str
+    row_type: str
+    planned_id: str = ""
+
+
 class GestureCatalog:
     """แยกการอ่าน active vocabulary ออกจากการแก้ planned vocabulary."""
 
@@ -128,6 +147,84 @@ class GestureCatalog:
         if len(ids) != len(set(ids)) or len(names) != len(set(names)):
             raise DataFileError("พบรหัสหรือชื่อท่าที่วางแผนซ้ำกัน")
         return sorted(gestures, key=lambda item: (item.priority, item.name))
+
+    def load_plan_view(self, visible_gestures):
+        """รวมคำในโมเดลและคำที่รอเพิ่มเป็นคลังเดียวโดยไม่ทำคำสูญหาย.
+
+        คำตั้งต้นจาก training_config ยังคงแสดงเพื่อรองรับข้อมูลเดิม แต่ไม่มีการ
+        แบ่งคำหลัก/คำรอง คำใหม่ทุกคำมีสิทธิ์ถูกเลือกเพิ่มเข้าโมเดลเท่ากัน
+        """
+        scope = tuple(str(name).strip() for name in visible_gestures)
+        active = {item.name: item for item in self.load_active()}
+        planned = {item.name: item for item in self.load_planned()}
+        rows = []
+        for index, name in enumerate(scope):
+            if name in active:
+                rows.append(
+                    GesturePlanItem(
+                        key=f"scope_{index}",
+                        name=name,
+                        category="ใช้งานในโมเดล",
+                        priority="—",
+                        status="ใช้งานได้แล้ว",
+                        row_type="active",
+                    )
+                )
+                continue
+            item = planned.get(name)
+            if item is not None:
+                rows.append(
+                    GesturePlanItem(
+                        key=f"scope_{index}",
+                        name=item.name,
+                        category=item.category,
+                        priority=str(item.priority),
+                        status=PLANNED_STATUS_LABELS[item.status],
+                        row_type="planned",
+                        planned_id=item.id,
+                    )
+                )
+                continue
+            rows.append(
+                GesturePlanItem(
+                    key=f"scope_{index}",
+                    name=name,
+                    category="รอเพิ่มข้อมูล",
+                    priority="—",
+                    status="ต้องเพิ่มข้อมูล",
+                    row_type="missing",
+                )
+            )
+
+        scope_names = set(scope)
+        for index, item in enumerate(self.load_active()):
+            if item.name in scope_names:
+                continue
+            rows.append(
+                GesturePlanItem(
+                    key=f"active_extra_{index}",
+                    name=item.name,
+                    category="ใช้งานในโมเดล",
+                    priority="—",
+                    status="ใช้งานได้แล้ว",
+                    row_type="active",
+                )
+            )
+        for item in self.load_planned():
+            if item.name in scope_names:
+                continue
+            rows.append(
+                GesturePlanItem(
+                    key=f"planned_{item.id}",
+                    name=item.name,
+                    category=item.category,
+                    priority=str(item.priority),
+                    status=PLANNED_STATUS_LABELS[item.status],
+                    row_type="planned",
+                    planned_id=item.id,
+                )
+            )
+        return rows
 
     def save_planned(self, gestures):
         """ตรวจชื่อซ้ำ/ชนกับ active ก่อนบันทึกแผนแบบ atomic."""

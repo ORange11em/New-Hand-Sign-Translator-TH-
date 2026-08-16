@@ -1,6 +1,6 @@
 """โหลดและตรวจ training_config.json เพื่อให้การทดลอง Dataset V2 ทำซ้ำได้."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 from pathlib import Path
 
@@ -43,7 +43,7 @@ class AcceptanceCriteria:
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    """ขอบเขตคำศัพท์ 16 ท่า คลาสภายใน และค่ากระบวนการทั้งหมด."""
+    """คำตั้งต้น คลาสภายใน และค่ากระบวนการที่ใช้เพิ่มคำได้ต่อเนื่อง."""
 
     schema_version: int
     project_name: str
@@ -53,6 +53,8 @@ class TrainingConfig:
     collection: CollectionConfig
     training: TrainingOptions
     acceptance: AcceptanceCriteria
+    target_gesture: str = ""
+    mode: str = "standard"
 
     @property
     def all_classes(self):
@@ -70,12 +72,21 @@ class TrainingConfig:
         """ตรวจความสอดคล้องของแผนก่อนอ่าน Dataset หรือเริ่มเทรน."""
         if self.schema_version != 1:
             raise ConfigurationError("training_config schema_version ต้องเป็น 1")
-        if len(self.visible_gestures) != 16:
-            raise ConfigurationError("แผนนี้ต้องมีคำศัพท์ที่แสดงแก่ผู้ใช้ 16 ท่า")
+        if self.mode not in {"standard", "quick_trial"}:
+            raise ConfigurationError("mode ต้องเป็น standard หรือ quick_trial")
+        if self.target_gesture:
+            if self.target_gesture not in self.visible_gestures:
+                raise ConfigurationError("คำเป้าหมายต้องอยู่ใน visible_gestures ของรอบนี้")
+            if not self.visible_gestures:
+                raise ConfigurationError("รอบเพิ่มทีละคำต้องมีคำที่แสดงอย่างน้อย 1 ท่า")
+        elif not self.visible_gestures:
+            raise ConfigurationError("รายการคำตั้งต้นต้องมีอย่างน้อย 1 ท่า")
         if len(set(self.all_classes)) != len(self.all_classes):
             raise ConfigurationError("ชื่อคลาสใน training_config ห้ามซ้ำกัน")
-        if "neutral" not in self.internal_classes:
+        if self.mode == "standard" and "neutral" not in self.internal_classes:
             raise ConfigurationError("ต้องมีคลาส neutral สำหรับลดการตรวจผิด")
+        if self.mode == "quick_trial" and self.internal_classes:
+            raise ConfigurationError("โหมดทดลองด่วนใช้เฉพาะคำที่แสดงและไม่มีคลาสภายใน")
         if len(self.collection.signers) != 2:
             raise ConfigurationError("แผน MVP นี้กำหนดสมาชิกเก็บข้อมูล 2 คน")
         if len(set(self.collection.signers)) != len(self.collection.signers):
@@ -93,8 +104,13 @@ class TrainingConfig:
             raise ConfigurationError("sequence_length ต้องมากกว่า 0")
         if self.training.algorithm != "SVC":
             raise ConfigurationError("ขณะนี้รองรับ algorithm แบบ SVC เท่านั้น")
-        if self.training.evaluation_strategy != "leave_one_signer_out":
-            raise ConfigurationError("ต้องประเมินแบบ leave_one_signer_out")
+        expected_strategy = (
+            "stratified_holdout"
+            if self.mode == "quick_trial"
+            else "leave_one_signer_out"
+        )
+        if self.training.evaluation_strategy != expected_strategy:
+            raise ConfigurationError(f"โหมด {self.mode} ต้องประเมินแบบ {expected_strategy}")
         if not set(self.critical_gestures).issubset(self.visible_gestures):
             raise ConfigurationError("critical_gestures ต้องอยู่ใน visible_gestures")
         for name, value in vars(self.acceptance).items():
@@ -160,9 +176,98 @@ def load_training_config(path=TRAINING_CONFIG_FILE):
                     acceptance["maximum_neutral_false_positive_rate"]
                 ),
             ),
+            target_gesture=str(payload.get("target_gesture", "")).strip(),
+            mode=str(payload.get("mode", "standard")).strip(),
         )
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
         raise ConfigurationError(f"อ่าน training_config.json ไม่ได้: {error}") from error
     if not config.project_name:
         raise ConfigurationError("project_name ห้ามว่าง")
     return config.validate()
+
+
+def incremental_targets(config=None, active_names=(), planned_names=()):
+    """คืนทุกคำที่ยังไม่อยู่ในโมเดล ตามลำดับโดยไม่แบ่งคำหลัก/คำรอง."""
+    config = config or load_training_config()
+    active = {str(name).strip() for name in active_names}
+    candidates = []
+    for raw_name in (*config.visible_gestures, *planned_names):
+        name = str(raw_name).strip()
+        if name and name not in candidates:
+            candidates.append(name)
+    return tuple(name for name in candidates if name not in active)
+
+
+def build_incremental_training_config(
+    target_gesture,
+    config=None,
+    active_names=(),
+    planned_names=(),
+):
+    """สร้างขอบเขตรอบเดียวจากคำเดิมทั้งหมด บวกคำใหม่หนึ่งคำและคลาสภายใน.
+
+    SVC ไม่รองรับการต่อคลาสเข้าโมเดลเดิมโดยตรง จึงต้องฝึกใหม่จากข้อมูล V2
+    ของคำเดิมทุกคำร่วมกับคำเป้าหมาย แต่ผู้ใช้เก็บเพิ่มเฉพาะคำใหม่ในรอบถัด ๆ ไป
+    """
+    config = config or load_training_config()
+    target = str(target_gesture).strip()
+    active_order = []
+    active = set()
+    for raw_name in active_names:
+        name = str(raw_name).strip()
+        if name and name not in active:
+            active.add(name)
+            active_order.append(name)
+    allowed_targets = set(config.visible_gestures).union(
+        str(name).strip() for name in planned_names if str(name).strip()
+    )
+    if not target:
+        raise ConfigurationError("กรุณาเลือกคำที่ต้องการเพิ่มในรอบนี้")
+    if target not in allowed_targets:
+        raise ConfigurationError(
+            f"คำว่า {target} ยังไม่ได้บันทึกไว้ในคลังคำศัพท์"
+        )
+    if target in active:
+        raise ConfigurationError(f"คำว่า {target} อยู่ในโมเดลปัจจุบันแล้ว")
+
+    round_visible = tuple(active_order) + (target,)
+    round_critical = tuple(
+        name for name in config.critical_gestures if name in round_visible
+    )
+    return replace(
+        config,
+        project_name=f"{config.project_name} — เพิ่มคำ {target}",
+        visible_gestures=round_visible,
+        critical_gestures=round_critical,
+        target_gesture=target,
+    ).validate()
+
+
+def build_quick_trial_config(
+    target_gesture,
+    config=None,
+    active_names=(),
+    planned_names=(),
+):
+    """สร้างขอบเขตทดลองด่วนจากคำในโมเดลปัจจุบันบวกคำใหม่หนึ่งคำ.
+
+    โหมดนี้นำข้อมูลฐานเดิมกลับมาใช้ จึงไม่บังคับให้ถ่ายคำเดิมหรือ neutral ซ้ำ
+    และใช้การแบ่ง train/test แบบ stratified holdout สำหรับผลทดสอบเบื้องต้นเท่านั้น
+    """
+    standard = build_incremental_training_config(
+        target_gesture,
+        config=config,
+        active_names=active_names,
+        planned_names=planned_names,
+    )
+    return replace(
+        standard,
+        project_name=f"{standard.project_name} — ทดลองด่วน",
+        internal_classes=(),
+        critical_gestures=(),
+        training=replace(
+            standard.training,
+            evaluation_strategy="stratified_holdout",
+        ),
+        mode="quick_trial",
+    ).validate()

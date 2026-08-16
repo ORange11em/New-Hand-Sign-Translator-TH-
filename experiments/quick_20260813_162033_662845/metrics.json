@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "experiment_id": "quick_20260813_162033_662845",
+  "created_at": "2026-08-13T16:20:33+07:00",
+  "duration_seconds": 0.21,
+  "mode": "quick_trial",
+  "evaluation_strategy": "stratified_holdout",
+  "target_gesture": "ห้องน้ำ",
+  "dataset_fingerprint_sha256": "7fe9541bc7e83e4658561a803751348a95589e79537ab5e5ebefd72dbfaadaa6",
+  "accepted_clips": 170,
+  "base_clips": 150,
+  "new_target_clips": 20,
+  "signers": [
+    "person_01",
+    "person_02"
+  ],
+  "sessions_present": [
+    "session_01",
+    "session_02"
+  ],
+  "classes": [
+    "ขอบคุณ",
+    "ขอโทษ",
+    "สวัสดี",
+    "ห้องน้ำ",
+    "ใช่",
+    "ไม่เป็นไร",
+    "ไม่ใช่"
+  ],
+  "aggregate": {
+    "accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0,
+    "weighted_precision": 1.0,
+    "weighted_recall": 1.0,
+    "weighted_f1": 1.0,
+    "per_class": [
+      {
+        "class_name": "ขอบคุณ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ขอโทษ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "สวัสดี",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ห้องน้ำ",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "ใช่",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 4
+      },
+      {
+        "class_name": "ไม่เป็นไร",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 6
+      },
+      {
+        "class_name": "ไม่ใช่",
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 2
+      }
+    ],
+    "confusion_matrix": [
+      [
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        6,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        4,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        4,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        6,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        2
+      ]
+    ],
+    "neutral_false_positive_rate": 0.0,
+    "acceptance_checks": {
+      "accuracy": true,
+      "macro_f1": true,
+      "minimum_visible_recall": true
+    },
+    "passed": true
+  },
+  "folds": [
+    {
+      "accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "weighted_precision": 1.0,
+      "weighted_recall": 1.0,
+      "weighted_f1": 1.0,
+      "per_class": [
+        {
+          "class_name": "ขอบคุณ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ขอโทษ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "สวัสดี",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ห้องน้ำ",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "ใช่",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 4
+        },
+        {
+          "class_name": "ไม่เป็นไร",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 6
+        },
+        {
+          "class_name": "ไม่ใช่",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 2
+        }
+      ],
+      "confusion_matrix": [
+        [
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          6,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          4,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          4,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          6,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2
+        ]
+      ],
+      "neutral_false_positive_rate": 0.0,
+      "acceptance_checks": {
+        "accuracy": true,
+        "macro_f1": true,
+        "minimum_visible_recall": true
+      },
+      "passed": true,
+      "test_signer": "stratified_holdout",
+      "train_signers": [
+        "ข้อมูลฐานเดิม",
+        "Dataset V2 คำใหม่"
+      ],
+      "train_clips": 136,
+      "test_clips": 34
+    }
+  ],
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "numpy": "1.26.4",
+    "scikit_learn": "1.3.2",
+    "git_commit": "d272906196728959d2b398d5b6e4d352730c89ae"
+  }
+}
