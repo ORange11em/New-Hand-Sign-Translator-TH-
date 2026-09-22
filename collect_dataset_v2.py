@@ -4,8 +4,16 @@ import argparse
 from datetime import datetime
 import os
 from pathlib import Path
+import re
 import time
 import uuid
+
+from handvox.external_evaluation import (
+    get_experiment_classes,
+    get_experiment_sequence_length,
+    get_training_signers,
+)
+from handvox.external_collection import external_session_choices, external_session_target
 
 import cv2
 import mediapipe as mp
@@ -13,10 +21,17 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from body_features import FEATURE_COUNT, extract_features, upper_body_bbox
-from handvox.dataset_v2 import ClipMetadata, DatasetV2Store, LIGHTING_VALUES
+from handvox.dataset_v2 import (
+    CAPTURE_MODE_VALUES,
+    ClipMetadata,
+    DatasetV2Store,
+    LIGHTING_VALUES,
+)
 from handvox.gesture_catalog import GestureCatalog
+from handvox.errors import HandVoxError
+from handvox.paths import EXPERIMENTS_DIR, ROOT
 from handvox.settings import SettingsStore
-from handvox.training_config import load_training_config
+from handvox.training_config import load_training_config, session_clip_target
 
 
 WINDOW_TITLE = "HandVox - Dataset V2 Collector"
@@ -55,10 +70,16 @@ def centered_text(image, text, y, font, color=(255, 255, 255)):
 
 def session_target(config, session_id):
     """แบ่งจำนวนคลิปเป้าหมายต่อคน/คลาสให้แต่ละ session อย่างสมดุล."""
-    sessions = config.collection.sessions
-    target = config.collection.target_clips_per_signer_per_class
-    base, remainder = divmod(target, len(sessions))
-    return base + (1 if sessions.index(session_id) < remainder else 0)
+    return session_clip_target(config, session_id)
+
+
+def capture_instruction(gesture_name):
+    """คืนคำแนะนำสั้นที่แยกท่าพัก ท่านอกระบบ และคำภาษามือจริง."""
+    if gesture_name == "neutral":
+        return "พักมือในท่าธรรมชาติ ไม่ทำคำภาษามือ"
+    if gesture_name == "unknown":
+        return "ขยับมือแบบที่ไม่ใช่คำใดในระบบ"
+    return f"ทำท่า {gesture_name} ให้ครบหนึ่งครั้ง"
 
 
 def count_usable(records, gesture_name, signer_id, session_id):
@@ -85,7 +106,10 @@ def countdown(camera, gesture_name, seconds):
             frame = centered_text(frame, gesture_name, 155, FONT_MEDIUM, (0, 255, 160))
             frame = centered_text(frame, str(remaining), 225, FONT_LARGE, (0, 210, 255))
             frame = centered_text(
-                frame, "เตรียมทำท่าให้ครบหนึ่งรอบ | Q หยุด", 315, FONT_SMALL
+                frame,
+                capture_instruction(gesture_name) + " | Q หยุด",
+                315,
+                FONT_SMALL,
             )
             cv2.imshow(WINDOW_TITLE, frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -162,34 +186,121 @@ def save_preview(path, frames, fps=30.0):
 
 def reference_for(gesture_name):
     """ค้นหา URL อ้างอิงของท่าจากแผนคำศัพท์."""
-    if gesture_name == "neutral":
+    if gesture_name in {"neutral", "unknown"}:
         return ""
     planned = GestureCatalog().load_planned()
     item = next((gesture for gesture in planned if gesture.name == gesture_name), None)
     return item.reference_url if item else ""
 
 
-def main():
+def main(argv=None):
     """ตรวจ argument เปิดกล้อง และบันทึก sequence/preview/metadata ทีละคลิป."""
     config = load_training_config()
+    catalog = GestureCatalog()
+    # คำใหม่ไม่ได้ถูกจำกัดไว้แค่ 16 คำตั้งต้น: ทันทีที่บันทึกลงคลังคำศัพท์
+    # collector ต้องรับชื่อนั้นได้ แม้ยังไม่ถูกติดตั้งอยู่ในโมเดลปัจจุบัน
+    collectable_gestures = tuple(
+        dict.fromkeys(
+            (
+                *config.visible_gestures,
+                *(item.name for item in catalog.load_active()),
+                *(item.name for item in catalog.load_planned()),
+                *config.internal_classes,
+            )
+        )
+    )
     parser = argparse.ArgumentParser(description="Collect HandVox Dataset V2 clips")
-    parser.add_argument("--signer", required=True, choices=config.collection.signers)
-    parser.add_argument("--session", required=True, choices=config.collection.sessions)
-    parser.add_argument("--gesture", required=True, choices=config.all_classes)
+    parser.add_argument("--signer", required=True)
+    parser.add_argument("--session", required=True)
+    parser.add_argument("--gesture", required=True)
+    parser.add_argument(
+        "--external-evaluation",
+        action="store_true",
+        help="เก็บผู้ใช้ใหม่ใน dataset_external_v2 เพื่อวัดผลภายหลัง",
+    )
+    parser.add_argument(
+        "--experiment",
+        help="รหัสหรือ path ของโมเดลที่จะวัด ใช้ร่วมกับ --external-evaluation",
+    )
     parser.add_argument("--lighting", default="unknown", choices=LIGHTING_VALUES)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--mode",
+        default="standard",
+        choices=CAPTURE_MODE_VALUES,
+        help="standard=เก็บให้ครบเป้า, extra=เพิ่มหนึ่งคลิป, retake=ถ่ายแทนคลิปเดิม",
+    )
+    parser.add_argument(
+        "--retake-clip",
+        default="",
+        help="clip_id เดิมที่คลิปใหม่จะใช้แทนเมื่อ mode=retake",
+    )
+    args = parser.parse_args(argv)
+    sequence_length = config.collection.sequence_length
 
-    store = DatasetV2Store()
+    allowed_sessions = (
+        external_session_choices(config)
+        if args.external_evaluation else config.collection.sessions
+    )
+    if args.session not in allowed_sessions:
+        parser.error("รอบถ่ายไม่อยู่ในแผน: " + ", ".join(allowed_sessions))
+    if args.experiment and not args.external_evaluation:
+        parser.error("--experiment ต้องใช้ร่วมกับ --external-evaluation")
+    if args.external_evaluation:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", args.signer):
+            parser.error("รหัสผู้ใช้ใหม่ต้องใช้ตัวอักษรอังกฤษ ตัวเลข _ หรือ - และห้ามว่าง")
+        training_signers = set(config.collection.signers)
+        if args.experiment:
+            experiment_dir = Path(args.experiment)
+            if not experiment_dir.is_absolute() and not experiment_dir.is_dir():
+                experiment_dir = EXPERIMENTS_DIR / experiment_dir
+            try:
+                training_signers.update(get_training_signers(experiment_dir))
+                collectable_gestures = get_experiment_classes(experiment_dir)
+                sequence_length = get_experiment_sequence_length(experiment_dir)
+            except HandVoxError as error:
+                parser.error(str(error))
+        if args.signer.casefold() in {signer.casefold() for signer in training_signers}:
+            parser.error("ผู้ใช้ใหม่ต้องไม่ใช่ผู้ทำท่าที่ใช้เทรนโมเดล")
+    elif args.signer not in config.collection.signers:
+        parser.error("ผู้ทำท่าไม่อยู่ในแผนเทรน: " + ", ".join(config.collection.signers))
+    if args.gesture not in collectable_gestures:
+        parser.error("ท่าไม่อยู่ในขอบเขตที่เก็บได้: " + ", ".join(collectable_gestures))
+
+    store = (
+        DatasetV2Store(ROOT / "dataset_external_v2")
+        if args.external_evaluation
+        else DatasetV2Store()
+    )
     store.initialize()
     records = store.records()
-    target = session_target(config, args.session)
+    target = (
+        external_session_target(config, args.session)
+        if args.external_evaluation else session_target(config, args.session)
+    )
     current = count_usable(records, args.gesture, args.signer, args.session)
-    if current >= target:
+    retake_record = None
+    if args.mode == "retake":
+        if not args.retake_clip:
+            parser.error("mode=retake ต้องระบุ --retake-clip")
+        retake_record = next(
+            (record for record in records if record.clip_id == args.retake_clip), None
+        )
+        if retake_record is None:
+            parser.error(f"ไม่พบคลิปที่ต้องการถ่ายใหม่: {args.retake_clip}")
+        if (
+            retake_record.gesture_name != args.gesture
+            or retake_record.signer_id != args.signer
+            or retake_record.session_id != args.session
+        ):
+            parser.error("คลิปเดิมไม่ตรงกับคำ ผู้ทำท่า หรือ session ที่ระบุ")
+
+    if args.mode == "standard" and current >= target:
         print(
             f"ข้อมูลครบแล้ว: {args.gesture} / {args.signer} / {args.session} "
-            f"({current}/{target} คลิป)"
+            f"({current}/{target} คลิป) — ใช้โหมด extra หากต้องการถ่ายเพิ่ม"
         )
         return 0
+    capture_limit = target - current if args.mode == "standard" else 1
 
     settings = SettingsStore().load_or_default()
     detector = mp.solutions.holistic.Holistic(
@@ -210,14 +321,15 @@ def main():
     cv2.namedWindow(WINDOW_TITLE)
     try:
         first_clip = True
-        while current < target:
+        captured = 0
+        while captured < capture_limit:
             wait_seconds = 3 if first_clip else 1
             if not countdown(camera, args.gesture, wait_seconds):
                 break
             sequence, preview_frames = collect_clip(
                 camera,
                 detector,
-                config.collection.sequence_length,
+                sequence_length,
                 config.collection.save_preview_video,
             )
             if sequence is None:
@@ -251,14 +363,33 @@ def main():
                     duration_frames=len(sequence),
                     feature_count=sequence.shape[1],
                     dataset_version=2,
-                    notes="รอตรวจคุณภาพก่อนนำไปเทรน",
+                    notes=(
+                        "คลิปวัดผู้ใช้ใหม่ รอตรวจคุณภาพก่อนวัดผล"
+                        if args.external_evaluation
+                        else "คลิปถ่ายเพิ่ม รอตรวจคุณภาพก่อนนำไปเทรน"
+                        if args.mode == "extra"
+                        else "คลิปถ่ายใหม่ รอตรวจคุณภาพก่อนนำไปเทรน"
+                        if args.mode == "retake"
+                        else "รอตรวจคุณภาพก่อนนำไปเทรน"
+                    ),
+                    capture_mode=args.mode,
+                    supersedes_clip_id=(
+                        args.retake_clip if args.mode == "retake" else ""
+                    ),
                 )
             )
+            if args.mode == "retake":
+                store.mark_superseded(args.retake_clip, clip_id)
             current += 1
+            captured += 1
             first_clip = False
             print(
                 f"{args.gesture} / {args.signer} / {args.session}: "
-                f"{current}/{target} (pending)"
+                + (
+                    f"เพิ่มแล้ว {captured}/{capture_limit} คลิป (pending)"
+                    if args.mode != "standard"
+                    else f"{current}/{target} (pending)"
+                )
             )
     finally:
         detector.close()

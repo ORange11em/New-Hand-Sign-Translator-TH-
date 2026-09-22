@@ -1,0 +1,457 @@
+{
+  "ready": true,
+  "generated_at": "2026-09-22T07:47:52+07:00",
+  "accepted_clips": 412,
+  "expected_target_clips": 608,
+  "items": [
+    {
+      "status": "ok",
+      "code": "ready",
+      "message": "ข้อมูลผ่านเงื่อนไขขั้นต่ำสำหรับเทรนและวัดผล"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "สวัสดี / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ขอโทษ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ไม่เป็นไร / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ขอบคุณ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ใช่ / person_03: accepted 5/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ไม่ใช่ / person_03: accepted 5/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ช่วยด้วย / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ห้องน้ำ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "น้ำ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "กิน / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "เจ็บ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "หมอ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "เข้าใจ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ไม่เข้าใจ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ต้องการ / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "หยุด / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "ไม่ต้อง / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "neutral / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "warning",
+      "code": "accepted_below_target",
+      "message": "unknown / person_03: accepted 4/16 คลิปเป้าหมาย"
+    },
+    {
+      "status": "ok",
+      "code": "sequence_valid",
+      "message": "ไฟล์ sequence ผ่านการตรวจ 412 คลิป"
+    }
+  ],
+  "inventory": [
+    {
+      "gesture_name": "สวัสดี",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "สวัสดี",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ขอโทษ",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ขอโทษ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่เป็นไร",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่เป็นไร",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ขอบคุณ",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ขอบคุณ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ใช่",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ใช่",
+      "signer_id": "person_03",
+      "accepted": 5,
+      "pending": 0,
+      "rejected": 0,
+      "total": 5,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่ใช่",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่ใช่",
+      "signer_id": "person_03",
+      "accepted": 5,
+      "pending": 0,
+      "rejected": 0,
+      "total": 5,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ช่วยด้วย",
+      "signer_id": "person_01",
+      "accepted": 22,
+      "pending": 0,
+      "rejected": 0,
+      "total": 22,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ช่วยด้วย",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ห้องน้ำ",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ห้องน้ำ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "น้ำ",
+      "signer_id": "person_01",
+      "accepted": 22,
+      "pending": 0,
+      "rejected": 0,
+      "total": 22,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "น้ำ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "กิน",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "กิน",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "เจ็บ",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "เจ็บ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "หมอ",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "หมอ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "เข้าใจ",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "เข้าใจ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่เข้าใจ",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่เข้าใจ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ต้องการ",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ต้องการ",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "หยุด",
+      "signer_id": "person_01",
+      "accepted": 18,
+      "pending": 0,
+      "rejected": 0,
+      "total": 18,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "หยุด",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่ต้อง",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "ไม่ต้อง",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "neutral",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "neutral",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "unknown",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "unknown",
+      "signer_id": "person_03",
+      "accepted": 4,
+      "pending": 0,
+      "rejected": 0,
+      "total": 4,
+      "sessions": 4
+    }
+  ]
+}

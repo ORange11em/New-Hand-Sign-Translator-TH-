@@ -19,7 +19,9 @@
     "duration_frames": {"type": "integer", "minimum": 1},
     "feature_count": {"type": "integer", "minimum": 0},
     "dataset_version": {"const": 2},
-    "notes": {"type": "string"}
+    "notes": {"type": "string"},
+    "capture_mode": {"enum": ["standard", "extra", "retake"]},
+    "supersedes_clip_id": {"type": "string"}
   },
   "additionalProperties": false
 }

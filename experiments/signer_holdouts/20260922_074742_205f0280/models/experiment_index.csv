@@ -1,0 +1,2 @@
+﻿experiment_id,created_at,target_gesture,mode,accuracy,macro_f1,passed,report_path
+20260922_074852_974720,2026-09-22T07:47:52+07:00,,standard,0.7621359223300971,0.7985000749092971,False,C:\Users\Ult_Orange\Desktop\handvox\experiments\signer_holdouts\20260922_074742_205f0280\models\20260922_074852_974720\report.md

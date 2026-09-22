@@ -1,0 +1,5 @@
+# PyTorch build for NVIDIA GPUs on Windows (Python 3.10/3.11).
+# Install after requirements.txt:
+#   python -m pip install -r requirements-gpu.txt
+--index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0+cu128

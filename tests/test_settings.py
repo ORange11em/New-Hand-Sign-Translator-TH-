@@ -35,10 +35,15 @@ class SettingsStoreTests(unittest.TestCase):
     def test_auto_add_words_defaults_to_enabled(self):
         settings = AppSettings.from_dict({})
         self.assertTrue(settings.auto_add_words)
+        self.assertTrue(settings.prefer_gpu)
 
     def test_validation_rejects_non_boolean_auto_add_words(self):
         with self.assertRaises(ConfigurationError):
             AppSettings(auto_add_words="yes").validate()
+
+    def test_validation_rejects_non_boolean_gpu_preference(self):
+        with self.assertRaises(ConfigurationError):
+            AppSettings(prefer_gpu="cuda").validate()
 
 
 if __name__ == "__main__":

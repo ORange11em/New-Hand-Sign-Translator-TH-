@@ -1,0 +1,2 @@
+﻿experiment_id,created_at,duration_seconds,accepted_clips,accuracy,macro_precision,macro_recall,macro_f1,weighted_precision,weighted_recall,weighted_f1,neutral_false_positive_rate,unknown_false_activation_rate,passed,dataset_fingerprint_sha256
+20260915_041245_236100,2026-09-15T04:12:41+07:00,4.632,654,0.7865853658536586,0.8355520210783369,0.7836257309941521,0.7811294078104091,0.8305654203520055,0.7865853658536586,0.7805972357484805,0.125,0.375,False,1f3f851b79856098a2c9bd0a774cea69d5dd3e6debf1bad160d45f26de3e9927

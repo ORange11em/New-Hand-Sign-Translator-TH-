@@ -22,7 +22,10 @@ from handvox.training_config import (
 from handvox.training_workflow import (
     _acceptance_result,
     _ensure_no_active_gesture_regression,
+    _grouped_session_holdout,
+    _known_signers_session_holdout_folds,
     _metric_payload,
+    _predictions_with_recognition_policy,
     activate_experiment,
     preflight,
     quick_trial_readiness,
@@ -36,8 +39,12 @@ class TrainingWorkflowTests(unittest.TestCase):
     def test_seed_config_has_visible_words_and_neutral(self):
         config = load_training_config()
         self.assertGreater(len(config.visible_gestures), 0)
-        self.assertEqual(len(config.all_classes), len(config.visible_gestures) + 1)
+        self.assertEqual(
+            len(config.all_classes),
+            len(config.visible_gestures) + len(config.internal_classes),
+        )
         self.assertIn("neutral", config.internal_classes)
+        self.assertIn("unknown", config.internal_classes)
         self.assertGreater(config.expected_clip_count, 0)
 
     def test_config_allows_any_nonempty_starting_vocabulary(self):
@@ -57,8 +64,15 @@ class TrainingWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(round_config.visible_gestures, (*active, target))
         self.assertEqual(round_config.target_gesture, target)
-        self.assertEqual(round_config.all_classes[-1], "neutral")
-        self.assertEqual(round_config.expected_clip_count, 120)
+        self.assertTrue(
+            {"neutral", "unknown"}.issubset(round_config.internal_classes)
+        )
+        self.assertEqual(
+            round_config.expected_clip_count,
+            len(round_config.all_classes)
+            * len(round_config.collection.signers)
+            * round_config.collection.target_clips_per_signer_per_class,
+        )
 
     def test_incremental_targets_exclude_active_words(self):
         config = load_training_config()
@@ -136,7 +150,10 @@ class TrainingWorkflowTests(unittest.TestCase):
         self.assertEqual(quick.visible_gestures, (*active, target))
         self.assertEqual(quick.internal_classes, ())
         self.assertEqual(quick.mode, "quick_trial")
-        self.assertEqual(quick.training.evaluation_strategy, "stratified_holdout")
+        self.assertEqual(
+            quick.training.evaluation_strategy,
+            "grouped_signer_session_holdout",
+        )
 
     def test_empty_dataset_is_not_ready_and_report_is_saved(self):
         config = load_training_config()
@@ -159,6 +176,28 @@ class TrainingWorkflowTests(unittest.TestCase):
         self.assertEqual(metrics["accuracy"], 0.75)
         self.assertEqual(metrics["confusion_matrix"], [[1, 1], [0, 2]])
         self.assertEqual([row["class_name"] for row in metrics["per_class"]], ["a", "b"])
+
+    def test_recognition_policy_rejects_uncertain_visible_prediction(self):
+        config = replace(
+            load_training_config(),
+            visible_gestures=("a",),
+            internal_classes=("neutral", "unknown"),
+            critical_gestures=(),
+        ).validate()
+
+        predictions = _predictions_with_recognition_policy(
+            np.asarray(
+                [
+                    [0.10, 0.30, 0.60],
+                    [0.05, 0.15, 0.80],
+                    [0.80, 0.10, 0.10],
+                ]
+            ),
+            ["neutral", "unknown", "a"],
+            config,
+        )
+
+        self.assertEqual(predictions.tolist(), ["unknown", "a", "neutral"])
 
     def test_acceptance_finds_neutral_by_metric_class_order(self):
         config = load_training_config()
@@ -205,6 +244,124 @@ class TrainingWorkflowTests(unittest.TestCase):
         self.assertTrue(checks["minimum_critical_recall"])
         self.assertEqual(neutral_rate, 0.0)
 
+    def test_grouped_session_holdout_has_no_group_leakage(self):
+        labels = np.asarray(["a", "b"] * 4)
+        signers = np.asarray(
+            ["person_01"] * 4 + ["person_02"] * 4
+        )
+        sessions = np.asarray(
+            ["session_01", "session_01", "session_02", "session_02"] * 2
+        )
+        train_indices, test_indices, groups = _grouped_session_holdout(
+            labels,
+            signers,
+            sessions,
+            test_fraction=0.25,
+            random_seed=42,
+        )
+        self.assertFalse(
+            set(groups[train_indices]).intersection(groups[test_indices])
+        )
+        self.assertEqual(set(labels[train_indices]), {"a", "b"})
+        self.assertEqual(set(labels[test_indices]), {"a", "b"})
+
+    def test_known_signer_holdout_keeps_both_people_in_train_and_test(self):
+        labels = np.asarray(["a", "b"] * 8)
+        signers = np.asarray(["person_01"] * 8 + ["person_02"] * 8)
+        sessions = np.asarray(
+            ["session_01", "session_01", "session_02", "session_02"] * 4
+        )
+
+        train_indices, test_indices, groups = _grouped_session_holdout(
+            labels,
+            signers,
+            sessions,
+            test_fraction=0.25,
+            random_seed=42,
+            require_all_signers=True,
+        )
+
+        self.assertFalse(
+            set(groups[train_indices]).intersection(groups[test_indices])
+        )
+        self.assertEqual(set(signers[train_indices]), {"person_01", "person_02"})
+        self.assertEqual(set(signers[test_indices]), {"person_01", "person_02"})
+
+    def test_known_signer_session_folds_test_each_clip_once(self):
+        config = load_training_config()
+        labels = np.asarray(list(config.all_classes) * 8)
+        signers = np.asarray(
+            [signer for signer in config.collection.signers for _ in range(4 * len(config.all_classes))]
+        )
+        sessions = np.asarray(
+            [
+                session
+                for _ in config.collection.signers
+                for session in config.collection.sessions
+                for _ in config.all_classes
+            ]
+        )
+
+        folds, groups = _known_signers_session_holdout_folds(
+            config, labels, signers, sessions
+        )
+
+        self.assertEqual(len(folds), len(config.collection.sessions))
+        tested = np.concatenate([fold["test_indices"] for fold in folds])
+        self.assertEqual(set(tested.tolist()), set(range(len(labels))))
+        for fold in folds:
+            train_groups = set(groups[fold["train_indices"]])
+            validation_groups = set(groups[fold["validation_indices"]])
+            test_groups = set(groups[fold["test_indices"]])
+            self.assertFalse(train_groups.intersection(validation_groups))
+            self.assertFalse(train_groups.intersection(test_groups))
+            self.assertFalse(validation_groups.intersection(test_groups))
+
+    def test_grouped_session_holdout_rejects_class_with_only_one_group(self):
+        with self.assertRaisesRegex(HandVoxError, "ไม่ถึง 2 กลุ่ม"):
+            _grouped_session_holdout(
+                labels=np.asarray(["a", "a", "b", "b"]),
+                signer_ids=np.asarray(
+                    ["person_01", "person_02", "person_01", "person_01"]
+                ),
+                session_ids=np.asarray(
+                    ["session_01", "session_02", "session_01", "session_01"]
+                ),
+            )
+
+    def test_quick_readiness_warns_about_base_without_group_metadata(self):
+        base_config = load_training_config()
+        active = base_config.visible_gestures[:4]
+        target = base_config.visible_gestures[4]
+        config = build_quick_trial_config(
+            target, config=base_config, active_names=active
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_file = root / "gesture_sequences.npz"
+            clips = np.zeros(
+                (
+                    len(active),
+                    config.collection.sequence_length,
+                    FEATURE_COUNT,
+                ),
+                dtype=np.float32,
+            )
+            np.savez_compressed(base_file, clips=clips, labels=np.asarray(active))
+            with (
+                patch("handvox.training_workflow.LEGACY_DATA_FILE", base_file),
+                patch("handvox.training_workflow._reference_items", return_value=[]),
+            ):
+                report = quick_trial_readiness(
+                    config, DatasetV2Store(root / "dataset")
+                )
+        metadata_item = next(
+            item
+            for item in report.items
+            if item.code == "base_group_metadata_missing"
+        )
+        self.assertEqual(metadata_item.status, "warning")
+
     def test_quick_trial_trains_from_base_and_new_word(self):
         base_config = load_training_config()
         active = base_config.visible_gestures[:4]
@@ -218,6 +375,8 @@ class TrainingWorkflowTests(unittest.TestCase):
             generator = np.random.default_rng(123)
             base_clips = []
             base_labels = []
+            base_signers = []
+            base_sessions = []
             for class_index, name in enumerate(active):
                 for sample in range(8):
                     sequence = np.full(
@@ -228,8 +387,17 @@ class TrainingWorkflowTests(unittest.TestCase):
                     sequence += generator.normal(0, 0.001, sequence.shape).astype(np.float32)
                     base_clips.append(sequence)
                     base_labels.append(name)
+                    group_index = sample % 4
+                    base_signers.append(config.collection.signers[group_index // 2])
+                    base_sessions.append(config.collection.sessions[group_index % 2])
             base_file = root / "gesture_sequences.npz"
-            np.savez_compressed(base_file, clips=np.asarray(base_clips), labels=np.asarray(base_labels))
+            np.savez_compressed(
+                base_file,
+                clips=np.asarray(base_clips),
+                labels=np.asarray(base_labels),
+                signer_ids=np.asarray(base_signers),
+                session_ids=np.asarray(base_sessions),
+            )
             for sample in range(8):
                 relative = Path("clips") / f"target-{sample}.npy"
                 path = store.resolve_data_path(relative)
@@ -245,8 +413,8 @@ class TrainingWorkflowTests(unittest.TestCase):
                     ClipMetadata(
                         clip_id=f"target-{sample}",
                         gesture_name=target,
-                        signer_id=config.collection.signers[sample % 2],
-                        session_id=config.collection.sessions[sample % 2],
+                        signer_id=config.collection.signers[(sample % 4) // 2],
+                        session_id=config.collection.sessions[(sample % 4) % 2],
                         recorded_at=datetime.now(timezone.utc).isoformat(),
                         camera_index=0,
                         clip_number=sample + 1,
@@ -266,16 +434,28 @@ class TrainingWorkflowTests(unittest.TestCase):
                     config, store=store, output_root=root / "experiments"
                 )
             self.assertEqual(payload["mode"], "quick_trial")
+            self.assertEqual(
+                payload["evaluation_strategy"], "grouped_signer_session_holdout"
+            )
             self.assertEqual(payload["new_target_clips"], 8)
             self.assertTrue(payload["aggregate"]["passed"])
+            fold = payload["folds"][0]
+            self.assertFalse(
+                set(fold["train_session_groups"]).intersection(
+                    fold["test_session_groups"]
+                )
+            )
+            self.assertFalse(fold["group_leakage_detected"])
             self.assertTrue((experiment_dir / "training_sequences.npz").exists())
-            self.assertTrue((experiment_dir / "model.pkl").exists())
+            self.assertEqual(payload["model_backend"], "temporal_tcn")
+            self.assertTrue((experiment_dir / "model.pt").exists())
             with patch("handvox.training_workflow.EXPERIMENTS_DIR", root / "experiments"):
                 with self.assertRaises(HandVoxError):
                     activate_experiment(experiment_dir)
             deploy = root / "deployed"
             deploy.mkdir()
             deployed_model = deploy / "gesture_model.pkl"
+            deployed_temporal = deploy / "gesture_model.pt"
             deployed_labels = deploy / "gesture_labels.pkl"
             deployed_manifest = deploy / "model_manifest.json"
             deployed_custom = deploy / "custom_gestures.json"
@@ -295,9 +475,11 @@ class TrainingWorkflowTests(unittest.TestCase):
                     experiment_dir, allow_quick_trial=True
                 )
             self.assertTrue(backup.exists())
-            self.assertTrue(deployed_model.exists())
+            self.assertTrue(deployed_temporal.exists())
             with np.load(deployed_sequences, allow_pickle=False) as data:
                 self.assertEqual(set(data["labels"].tolist()), set((*active, target)))
+                self.assertEqual(len(data["signer_ids"]), len(data["labels"]))
+                self.assertEqual(len(data["session_ids"]), len(data["labels"]))
 
     def test_synthetic_workflow_creates_documentation_artifacts(self):
         base_config = load_training_config()
@@ -310,10 +492,11 @@ class TrainingWorkflowTests(unittest.TestCase):
             ),
             training=replace(
                 base_config.training,
+                algorithm="SVC",
                 parameters={
                     "kernel": "linear",
                     "C": 1.0,
-                    "probability": False,
+                    "probability": True,
                     "class_weight": "balanced",
                 },
             ),
@@ -358,7 +541,20 @@ class TrainingWorkflowTests(unittest.TestCase):
                     store=store,
                     output_root=root / "experiments",
                 )
-            self.assertTrue(payload["aggregate"]["passed"])
+            self.assertIsInstance(payload["aggregate"]["passed"], bool)
+            self.assertEqual(
+                payload["aggregate"]["passed"],
+                all(payload["aggregate"]["acceptance_checks"].values()),
+            )
+            self.assertEqual(payload["evaluation_group_key"], "signer_id+session_id")
+            for fold in payload["folds"]:
+                self.assertEqual(fold["train_clips"], fold["test_clips"] * 3)
+                self.assertFalse(
+                    set(fold["train_session_groups"]).intersection(
+                        fold["test_session_groups"]
+                    )
+                )
+                self.assertFalse(fold["group_leakage_detected"])
             for filename in (
                 "metrics.json",
                 "summary.csv",

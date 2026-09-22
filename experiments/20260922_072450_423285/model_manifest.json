@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "experiment_id": "20260922_072450_423285",
+  "created_at": "2026-09-22T07:24:51+07:00",
+  "model_backend": "temporal_tcn",
+  "model_artifact": "model.pt",
+  "model_file": "model.pt",
+  "mode": "standard",
+  "training_signers": [
+    "person_01",
+    "person_02"
+  ],
+  "evaluation_strategy": "known_signers_session_holdout",
+  "evaluation_scope": "known_signers_session_holdout",
+  "sequence_length": 30,
+  "feature_schema_version": "handvox.temporal_landmarks.v2",
+  "feature_count": 510,
+  "feature_schema": {
+    "schema_version": "handvox.temporal_landmarks.v2",
+    "input_feature_count": 171,
+    "output_feature_count": 510,
+    "preserves_raw_prefix": true,
+    "left_right_mirroring": false,
+    "pipeline_config": {
+      "target_length": 30,
+      "max_missing_gap": 2,
+      "trim_motion": false,
+      "motion_threshold": 0.015,
+      "trim_padding": 2,
+      "minimum_trimmed_frames": 5,
+      "augmentation": {
+        "rotation_degrees": 5.0,
+        "translation_max": 0.025,
+        "scale_min": 0.95,
+        "scale_max": 1.05,
+        "jitter_std": 0.003,
+        "time_scale_min": 0.92,
+        "time_scale_max": 1.08,
+        "frame_drop_probability": 0.05
+      }
+    }
+  },
+  "visible_gestures": [
+    {
+      "name": "สวัสดี",
+      "description": "ท่ามือนี้ใช้สำหรับ \"สวัสดี\" ผู้ที่อาวุโส ผู้ใหญ่ หรือบุคคลที่ตำแหน่งสูงกว่า",
+      "color": [
+        0,
+        220,
+        255
+      ]
+    },
+    {
+      "name": "ขอโทษ",
+      "description": "ท่ามือนี้ใช้สำหับ\"ขอโทษ\"ผู้อาวุโส หรือบุคคลที่ตำแหน่งสูงกว่า",
+      "color": [
+        0,
+        220,
+        100
+      ]
+    },
+    {
+      "name": "ไม่เป็นไร",
+      "description": "ไม่เป็นไร",
+      "color": [
+        255,
+        0,
+        160
+      ]
+    },
+    {
+      "name": "ขอบคุณ",
+      "description": "ขอบคุณ",
+      "color": [
+        255,
+        0,
+        160
+      ]
+    },
+    {
+      "name": "ใช่",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        180,
+        80,
+        255
+      ]
+    },
+    {
+      "name": "ไม่ใช่",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        0,
+        180,
+        255
+      ]
+    },
+    {
+      "name": "ช่วยด้วย",
+      "description": "ตรวจสอบว่าควรใช้ label ช่วย หรือ ช่วยด้วย",
+      "color": [
+        120,
+        220,
+        0
+      ]
+    },
+    {
+      "name": "ห้องน้ำ",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        120,
+        220,
+        0
+      ]
+    },
+    {
+      "name": "น้ำ",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        0,
+        220,
+        255
+      ]
+    },
+    {
+      "name": "กิน",
+      "description": "กิน",
+      "color": [
+        0,
+        220,
+        100
+      ]
+    },
+    {
+      "name": "เจ็บ",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        0,
+        220,
+        100
+      ]
+    },
+    {
+      "name": "หมอ",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        255,
+        120,
+        0
+      ]
+    },
+    {
+      "name": "เข้าใจ",
+      "description": "รอตรวจสอบรูปแบบภาษามือไทย",
+      "color": [
+        180,
+        80,
+        255
+      ]
+    },
+    {
+      "name": "ไม่เข้าใจ",
+      "description": "เพิ่มรายละเอียดและลิงก์อ้างอิงก่อนเก็บข้อมูล",
+      "color": [
+        0,
+        180,
+        255
+      ]
+    },
+    {
+      "name": "ต้องการ",
+      "description": "ต้องการ",
+      "color": [
+        0,
+        180,
+        255
+      ]
+    },
+    {
+      "name": "หยุด",
+      "description": "หยุด",
+      "color": [
+        120,
+        220,
+        0
+      ]
+    },
+    {
+      "name": "ไม่ต้อง",
+      "description": "รอตรวจสอบความคล้ายกับท่าปฏิเสธ",
+      "color": [
+        0,
+        220,
+        255
+      ]
+    }
+  ],
+  "internal_classes": [
+    "neutral",
+    "unknown"
+  ],
+  "evaluation": {
+    "strategy": "known_signers_session_holdout",
+    "scope": "known_signers_session_holdout",
+    "accuracy": 0.7628398791540786,
+    "macro_f1": 0.8006183862338951,
+    "passed": false
+  },
+  "recognition_policy": {
+    "minimum_confidence": 0.72,
+    "minimum_probability_margin": 0.12
+  },
+  "model_metadata": {
+    "artifact_format": "handvox-lightweight-tcn",
+    "artifact_version": 1,
+    "classes": [
+      "neutral",
+      "unknown",
+      "กิน",
+      "ขอบคุณ",
+      "ขอโทษ",
+      "ช่วยด้วย",
+      "ต้องการ",
+      "น้ำ",
+      "สวัสดี",
+      "หมอ",
+      "หยุด",
+      "ห้องน้ำ",
+      "เข้าใจ",
+      "เจ็บ",
+      "ใช่",
+      "ไม่ต้อง",
+      "ไม่เข้าใจ",
+      "ไม่เป็นไร",
+      "ไม่ใช่"
+    ],
+    "input_size": 510,
+    "sequence_length": 30,
+    "device_used": "cuda",
+    "device_requested": "auto",
+    "device_fallback_reason": "",
+    "device_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "schema_version": "handvox.temporal_landmarks.v2",
+    "trained_at_utc": "2026-09-22T00:24:50+00:00",
+    "training_samples": 1324,
+    "validation_samples": 0,
+    "epochs_completed": 12,
+    "best_epoch": 12,
+    "best_validation_loss": 0.011658450418357313,
+    "stopped_early": false
+  }
+}

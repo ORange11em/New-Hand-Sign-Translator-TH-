@@ -1,0 +1,22 @@
+[
+  {
+    "Path": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\gesture_model.pt",
+    "Hash": "63D2872D69EB3FA281F93746DC22BA82AD8EF46663FB3F697269018610618E35"
+  },
+  {
+    "Path": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\model_manifest.json",
+    "Hash": "48A11520573EA82DEFE552663E9D5CA321844C13F309112F8C411D45C954704D"
+  },
+  {
+    "Path": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\gesture_sequences.npz",
+    "Hash": "BDE8A7823D5870C73A3058F0D4832ABF6DE5C7F37BBC908C40088392206D1EFC"
+  },
+  {
+    "Path": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\gesture_labels.pkl",
+    "Hash": "DE9D49CB5A87EB8CAE641F7965C406900B581AF4F095266EB7C266C69304B7AB"
+  },
+  {
+    "Path": "C:\\Users\\Ult_Orange\\Desktop\\Update2\\custom_gestures.json",
+    "Hash": "39086453FF02FB2AE9176D81A9750823602F6A5DDE8F6128CC75CE4F6603BD98"
+  }
+]

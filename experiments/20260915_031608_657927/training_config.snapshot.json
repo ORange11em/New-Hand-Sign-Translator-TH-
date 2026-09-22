@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "project_name": "HandVox 16 Gestures MVP — เพิ่มคำ ไม่ต้อง",
+  "visible_gestures": [
+    "สวัสดี",
+    "ขอโทษ",
+    "ไม่เป็นไร",
+    "ขอบคุณ",
+    "ใช่",
+    "ไม่ใช่",
+    "ช่วยด้วย",
+    "ห้องน้ำ",
+    "น้ำ",
+    "กิน",
+    "เจ็บ",
+    "หมอ",
+    "เข้าใจ",
+    "ไม่เข้าใจ",
+    "ต้องการ",
+    "หยุด",
+    "ไม่ต้อง"
+  ],
+  "internal_classes": [
+    "neutral",
+    "unknown"
+  ],
+  "critical_gestures": [
+    "ช่วยด้วย"
+  ],
+  "collection": {
+    "signers": [
+      "person_01",
+      "person_02"
+    ],
+    "sessions": [
+      "session_01",
+      "session_02",
+      "session_03",
+      "session_04"
+    ],
+    "target_clips_per_signer_per_class": 16,
+    "minimum_accepted_per_signer_per_class": 14,
+    "sequence_length": 30,
+    "save_preview_video": true
+  },
+  "training": {
+    "algorithm": "TCN",
+    "parameters": {
+      "hidden_channels": [
+        64,
+        64
+      ],
+      "kernel_size": 3,
+      "dropout": 0.2,
+      "learning_rate": 0.001,
+      "weight_decay": 0.0001,
+      "batch_size": 32,
+      "max_epochs": 80,
+      "patience": 10,
+      "augmentation_copies": 1,
+      "device": "auto"
+    },
+    "evaluation_strategy": "leave_one_signer_out",
+    "random_seed": 42
+  },
+  "acceptance": {
+    "minimum_accuracy": 0.7,
+    "minimum_macro_f1": 0.7,
+    "minimum_class_recall": 0.5,
+    "minimum_critical_recall": 0.75,
+    "maximum_neutral_false_positive_rate": 0.2
+  },
+  "target_gesture": "ไม่ต้อง",
+  "mode": "standard"
+}

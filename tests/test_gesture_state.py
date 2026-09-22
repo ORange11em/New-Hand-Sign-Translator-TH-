@@ -58,10 +58,57 @@ class GestureStateMachineTests(unittest.TestCase):
         changed = self.machine.update("ขอบคุณ", 0.92, True, 0.25)
 
         self.assertEqual(held.phase, DetectionPhase.COOLDOWN)
-        self.assertEqual(held.label, "สวัสดี")
+        self.assertEqual(held.label, "")
+        self.assertEqual(held.reason, "wait_neutral")
         self.assertFalse(self.machine.speech_armed)
         self.assertEqual(changed.phase, DetectionPhase.CANDIDATE)
         self.assertEqual(changed.label, "")
+
+    def test_same_word_is_unlocked_only_after_neutral_frames(self):
+        confirmed = self.confirm()
+        self.machine.mark_emitted(confirmed.label)
+
+        first = self.machine.update(
+            "", 0.0, True, 0.20, neutral_detected=True
+        )
+        second = self.machine.update(
+            "", 0.0, True, 0.25, neutral_detected=True
+        )
+        released = self.machine.update(
+            "", 0.0, True, 0.30, neutral_detected=True
+        )
+
+        self.assertEqual(first.phase, DetectionPhase.COOLDOWN)
+        self.assertGreater(first.neutral_progress, 0.0)
+        self.assertFalse(second.released)
+        self.assertTrue(released.released)
+        self.assertEqual(released.phase, DetectionPhase.IDLE)
+
+    def test_probability_margin_must_be_wide_enough(self):
+        machine = GestureStateMachine(
+            min_confidence=0.65,
+            min_probability_margin=0.15,
+            confirm_frames=2,
+        )
+        result = machine.update(
+            "สวัสดี", 0.90, True, 0.0, probability_margin=0.05
+        )
+
+        self.assertEqual(result.phase, DetectionPhase.IDLE)
+        self.assertEqual(result.reason, "low_margin")
+
+    def test_unknown_is_rejected_and_does_not_unlock_cooldown(self):
+        confirmed = self.confirm()
+        self.machine.mark_emitted(confirmed.label)
+
+        result = self.machine.update(
+            "", 0.91, True, 0.20, unknown_detected=True
+        )
+
+        self.assertEqual(result.phase, DetectionPhase.COOLDOWN)
+        self.assertEqual(result.label, "")
+        self.assertEqual(result.reason, "unknown")
+        self.assertFalse(result.released)
 
 
 if __name__ == "__main__":

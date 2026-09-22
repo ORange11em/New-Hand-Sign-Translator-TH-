@@ -64,6 +64,40 @@ class DatasetV2StoreTests(unittest.TestCase):
             with self.assertRaises(DataFileError):
                 store.resolve_data_path("../outside.npy")
 
+    def test_superseded_clip_cannot_be_restored_or_replaced_twice(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = DatasetV2Store(Path(directory) / "dataset")
+            old = metadata("clip-old")
+            replacement = metadata("clip-new")
+            store.append(old)
+            store.append(replacement)
+            store.mark_superseded(old.clip_id, replacement.clip_id)
+
+            records = {item.clip_id: item for item in store.records()}
+            self.assertEqual(records[old.clip_id].quality, "rejected")
+            self.assertEqual(records[replacement.clip_id].capture_mode, "retake")
+            self.assertEqual(
+                records[replacement.clip_id].supersedes_clip_id, old.clip_id
+            )
+            with self.assertRaisesRegex(DataFileError, "ถูกถ่ายแทนแล้ว"):
+                store.set_quality([old.clip_id], "accepted")
+
+            another = metadata("clip-another")
+            store.append(another)
+            with self.assertRaisesRegex(DataFileError, "ถูกแทนที่"):
+                store.mark_superseded(old.clip_id, another.clip_id)
+
+    def test_retake_must_keep_gesture_signer_and_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = DatasetV2Store(Path(directory) / "dataset")
+            old = metadata("clip-old")
+            wrong = metadata("clip-wrong")
+            wrong.session_id = "session-02"
+            store.append(old)
+            store.append(wrong)
+            with self.assertRaisesRegex(DataFileError, "session เดียว"):
+                store.mark_superseded(old.clip_id, wrong.clip_id)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 """หน้าจอหลักทั้งหมดของ HandVox สร้างด้วย Tkinter.
 
-ไฟล์นี้ประกอบด้วยหน้า Dashboard, สร้างประโยค, คำศัพท์, Dataset V2,
+ไฟล์นี้ประกอบด้วยหน้า Dashboard, สร้างประโยค, คำศัพท์,
 ตัวช่วยเตรียมเทรน, ตั้งค่า และวิธีใช้ รวมถึงคลาส HandVoxApp ที่เชื่อมทุกหน้า
 เข้ากับบริการเสียง การเปิดสคริปต์ และไฟล์ข้อมูลของโปรเจกต์
 """
@@ -25,7 +25,7 @@ from handvox.gesture_catalog import (
     PlannedGesture,
 )
 from handvox.history import HistoryStore
-from handvox.paths import DATASET_V2_DIR, LOG_FILE, ROOT
+from handvox.paths import LOG_FILE, ROOT
 from handvox.processes import ScriptLauncher
 from handvox.sentence import SentenceBuilder
 from handvox.settings import AppSettings, SettingsStore
@@ -34,6 +34,7 @@ from handvox.training_config import (
     build_quick_trial_config,
     incremental_targets,
     load_training_config,
+    session_clip_target,
 )
 from handvox.training_workflow import (
     activate_experiment,
@@ -64,6 +65,35 @@ COLORS = {
 }
 
 
+def experiment_failure_summary(experiment):
+    if experiment is None:
+        return "เลือกผลการทดลองเพื่อดูเงื่อนไขติดตั้ง"
+    if experiment.get("passed"):
+        return "ผ่านเกณฑ์ของวิธีวัดนี้ · ยังไม่ใช่ผลวัดผู้ใช้ใหม่"
+    try:
+        directory = experiment["path"]
+        metrics = json.loads((directory / "metrics.json").read_text(encoding="utf-8"))
+        config = json.loads((directory / "training_config.snapshot.json").read_text(encoding="utf-8"))
+        acceptance = config["acceptance"]
+        critical = set(config.get("critical_gestures", []))
+        visible = set(config["visible_gestures"])
+        failed_classes = []
+        for row in metrics["aggregate"]["per_class"]:
+            name = row["class_name"]
+            if name not in visible:
+                continue
+            minimum = acceptance["minimum_class_recall"]
+            if name in critical:
+                minimum = max(minimum, acceptance["minimum_critical_recall"])
+            if row["recall"] < minimum:
+                failed_classes.append(f"{name}: Recall {row['recall']:.2%} < {minimum:.0%}")
+        if failed_classes:
+            return "ผลยังไม่ผ่าน — " + " · ".join(failed_classes) + " · ดูรายละเอียดในรายงาน"
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        pass
+    return "ผลยังไม่ผ่านเกณฑ์ · เปิดรายงานเพื่อดูรายการที่ต้องปรับ · ติดตั้งได้เฉพาะแบบทดลอง"
+
+
 # ── เครื่องมือ UI ที่ใช้ร่วมกันทุกหน้า ──────────────────────
 def clear_children(widget: tk.Misc) -> None:
     """ลบ widget ลูกทั้งหมดก่อนวาดรายการใหม่จากข้อมูลล่าสุด."""
@@ -74,6 +104,54 @@ def clear_children(widget: tk.Misc) -> None:
 def section_card(parent: tk.Misc, padding: int = 18) -> ttk.Frame:
     """สร้างกรอบ card มาตรฐานตามสีและระยะห่างของแอป."""
     return ttk.Frame(parent, style="OutlinedCard.TFrame", padding=padding)
+
+
+def installed_experiment_id() -> str:
+    try:
+        manifest = json.loads((ROOT / "model_manifest.json").read_text(encoding="utf-8"))
+        return str(manifest.get("experiment_id", ""))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return ""
+
+
+def experiment_primary_action(experiment, installed_id="") -> tuple[str, str]:
+    if experiment is None:
+        return "ติดตั้งโมเดล", "none"
+    if installed_id and experiment.get("id") == installed_id:
+        return "เปิดกล้องโมเดลนี้", "camera"
+    if experiment.get("passed"):
+        return "ติดตั้งโมเดล", "install"
+    return "ติดตั้งแบบทดลอง", "trial"
+
+
+def experiment_time_label(value) -> str:
+    try:
+        return datetime.fromisoformat(str(value)).strftime("%d/%m/%Y %H:%M")
+    except ValueError:
+        return str(value)
+
+
+class Disclosure(ttk.Frame):
+    """Keep secondary controls available without occupying the main workflow."""
+
+    def __init__(self, parent, title, expanded=False):
+        super().__init__(parent, style="Card.TFrame")
+        self.title = title
+        self.expanded = expanded
+        self.toggle_button = ttk.Button(
+            self, command=lambda: self.set_expanded(not self.expanded)
+        )
+        self.toggle_button.pack(anchor="w")
+        self.body = ttk.Frame(self, style="Card.TFrame", padding=(0, 10, 0, 0))
+        self.set_expanded(expanded)
+
+    def set_expanded(self, expanded):
+        self.expanded = expanded
+        self.toggle_button.configure(text=("− " if expanded else "+ ") + self.title)
+        if expanded:
+            self.body.pack(fill="both", expand=True)
+        else:
+            self.body.pack_forget()
 
 
 def experiment_preserves_active_words(experiment, active_names) -> bool:
@@ -88,6 +166,50 @@ def experiment_preserves_active_words(experiment, active_names) -> bool:
     except (OSError, KeyError, TypeError, json.JSONDecodeError):
         return False
     return set(active_names).issubset(experiment_names)
+
+
+def training_plan_progress(config, records) -> dict[str, int]:
+    """สรุปความครบแบบแยกคำ คน และรอบ เพื่อไม่ให้คลิปรวมสูงหลอกสถานะ."""
+    records = tuple(records)
+    capture_groups_complete = 0
+    capture_groups_total = (
+        len(config.all_classes)
+        * len(config.collection.signers)
+        * len(config.collection.sessions)
+    )
+    accepted_scopes_complete = 0
+    accepted_scopes_total = len(config.all_classes) * len(config.collection.signers)
+    for gesture_name in config.all_classes:
+        for signer_id in config.collection.signers:
+            accepted_total = 0
+            accepted_sessions = set()
+            for session_id in config.collection.sessions:
+                relevant = [
+                    record
+                    for record in records
+                    if record.gesture_name == gesture_name
+                    and record.signer_id == signer_id
+                    and record.session_id == session_id
+                    and record.quality != "rejected"
+                ]
+                if len(relevant) >= session_clip_target(config, session_id):
+                    capture_groups_complete += 1
+                accepted = sum(record.quality == "accepted" for record in relevant)
+                accepted_total += accepted
+                if accepted:
+                    accepted_sessions.add(session_id)
+            if (
+                accepted_total
+                >= config.collection.minimum_accepted_per_signer_per_class
+                and accepted_sessions.issuperset(config.collection.sessions)
+            ):
+                accepted_scopes_complete += 1
+    return {
+        "capture_groups_complete": capture_groups_complete,
+        "capture_groups_total": capture_groups_total,
+        "accepted_scopes_complete": accepted_scopes_complete,
+        "accepted_scopes_total": accepted_scopes_total,
+    }
 
 
 class ScrollableFrame(ttk.Frame):
@@ -139,7 +261,7 @@ class DashboardPage(BasePage):
             parent,
             app,
             "ภาพรวม",
-            "ตรวจความพร้อมของโปรเจกต์โดยไม่เปิดกล้องและไม่เทรนโมเดล",
+            "เปิดกล้องเพื่อใช้โมเดลที่ติดตั้งอยู่",
         )
 
         action_row = ttk.Frame(self, style="Page.TFrame")
@@ -150,11 +272,6 @@ class DashboardPage(BasePage):
             style="Accent.TButton",
             command=app.open_detector,
         ).pack(side="left")
-        ttk.Button(
-            action_row,
-            text="สร้างประโยคโดยไม่ใช้กล้อง",
-            command=lambda: app.show_page("sentence"),
-        ).pack(side="left", padx=10)
         ttk.Button(action_row, text="ตรวจสอบอีกครั้ง", command=self.refresh).pack(side="right")
 
         summary = ttk.Frame(self, style="Page.TFrame")
@@ -166,21 +283,23 @@ class DashboardPage(BasePage):
         self.dataset_var = tk.StringVar(value="-")
         self._summary_card(summary, 0, "ท่าที่โมเดลรู้จัก", self.active_var)
         self._summary_card(summary, 1, "คำที่รอเพิ่ม", self.planned_var)
-        self._summary_card(summary, 2, "คลิป Dataset V2", self.dataset_var)
+        self._summary_card(summary, 2, "คลิปที่เก็บไว้", self.dataset_var)
 
         card = section_card(self)
-        card.pack(fill="both", expand=True)
-        ttk.Label(card, text="สถานะระบบ", style="CardTitle.TLabel").pack(anchor="w")
+        card.pack(fill="x")
+        self.system_summary_var = tk.StringVar(value="กำลังตรวจระบบ...")
         ttk.Label(
             card,
-            text="รายการนี้เป็นการอ่านไฟล์เท่านั้น ไม่เปิดกล้องและไม่แก้ไขโมเดล",
-            style="CardMuted.TLabel",
-        ).pack(anchor="w", pady=(2, 12))
+            textvariable=self.system_summary_var,
+            style="CardTitle.TLabel",
+        ).pack(anchor="w", pady=(0, 12))
+        self.diagnostics_details = Disclosure(card, "รายละเอียดระบบ")
+        self.diagnostics_details.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(
-            card,
+            self.diagnostics_details.body,
             columns=("status", "name", "detail"),
             show="headings",
-            height=12,
+            height=7,
         )
         self.tree.heading("status", text="สถานะ")
         self.tree.heading("name", text="รายการ")
@@ -214,6 +333,14 @@ class DashboardPage(BasePage):
             self.active_var.set(str(len(self.app.active_gestures)))
             self.planned_var.set(str(waiting))
             self.dataset_var.set(str(dataset_summary["clips"]))
+            issues = [item for item in items if item.status != "ok"]
+            model_detail = next((item.message for item in items if item.name == "โมเดล"), "")
+            self.system_summary_var.set(
+                f"มี {len(issues)} รายการที่ควรตรวจ" if issues
+                else f"พร้อมเปิดกล้อง · {model_detail}"
+            )
+            if issues:
+                self.diagnostics_details.set_expanded(True)
             for row in self.tree.get_children():
                 self.tree.delete(row)
             labels = {"ok": "พร้อม", "warning": "ควรดู", "error": "ผิดพลาด"}
@@ -836,6 +963,10 @@ class GesturesPage(BasePage):
             training_page = self.app.pages.get("training")
             if isinstance(training_page, TrainingPage):
                 training_page.select_target(gesture.name)
+                try:
+                    training_page.refresh()
+                except Exception:
+                    logging.exception("รีเฟรชหน้าเตรียมเทรนหลังเพิ่มคำไม่สำเร็จ")
             self.app.set_status(
                 f"บันทึกแผนคำว่า {gesture.name} แล้ว และเลือกไว้ในหน้าเตรียมเทรน"
             )
@@ -858,6 +989,12 @@ class GesturesPage(BasePage):
             self.app.catalog.delete_planned(row.planned_id)
             self.refresh()
             self.new_form()
+            training_page = self.app.pages.get("training")
+            if isinstance(training_page, TrainingPage):
+                try:
+                    training_page.refresh()
+                except Exception:
+                    logging.exception("รีเฟรชหน้าเตรียมเทรนหลังลบคำไม่สำเร็จ")
 
     def open_reference(self) -> None:
         url = self.form_vars["reference_url"].get().strip()
@@ -870,431 +1007,6 @@ class GesturesPage(BasePage):
         webbrowser.open(url)
 
 
-# ── หน้า 4: สถานะ Dataset V2 ───────────────────────────────
-class DatasetPage(BasePage):
-    """สรุป metadata, inventory และโครงสร้าง Dataset V2."""
-
-    def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
-        super().__init__(
-            parent,
-            app,
-            "Dataset V2",
-            "เตรียมมาตรฐานข้อมูลก่อนเก็บคลิปจริง โดยยังไม่ใช้กล้องและไม่เทรน",
-        )
-        summary = section_card(self)
-        summary.pack(fill="x", pady=(0, 18))
-        self.total_var = tk.StringVar(value="0")
-        self.gesture_var = tk.StringVar(value="0")
-        self.signer_var = tk.StringVar(value="0")
-        ttk.Label(summary, text="สถานะ Dataset V2", style="CardTitle.TLabel").grid(
-            row=0, column=0, columnspan=4, sticky="w"
-        )
-        for column, (label, variable) in enumerate(
-            (
-                ("คลิปทั้งหมด", self.total_var),
-                ("จำนวนท่า", self.gesture_var),
-                ("ผู้ทำท่า", self.signer_var),
-            )
-        ):
-            summary.columnconfigure(column, weight=1)
-            ttk.Label(summary, text=label, style="CardMuted.TLabel").grid(
-                row=1, column=column, sticky="w", pady=(14, 0)
-            )
-            ttk.Label(summary, textvariable=variable, style="Metric.TLabel").grid(
-                row=2, column=column, sticky="w"
-            )
-        ttk.Button(summary, text="สร้างโฟลเดอร์ Dataset V2", command=self.initialize).grid(
-            row=1, column=3, rowspan=2, sticky="e"
-        )
-
-        details = section_card(self)
-        details.pack(fill="both", expand=True)
-        ttk.Label(details, text="ข้อมูลที่ต้องบันทึกต่อหนึ่งคลิป", style="CardTitle.TLabel").pack(anchor="w")
-        ttk.Label(
-            details,
-            text=f"ตำแหน่ง: {DATASET_V2_DIR}",
-            style="CardMuted.TLabel",
-        ).pack(anchor="w", pady=(2, 12))
-        fields = (
-            ("clip_id", "รหัสคลิปที่ไม่ซ้ำ"),
-            ("gesture_name", "ชื่อท่าหรือคำ"),
-            ("signer_id", "รหัสผู้ทำท่าโดยไม่ใช้ชื่อจริง"),
-            ("session_id", "รหัสรอบการเก็บข้อมูล"),
-            ("recorded_at", "วันเวลาแบบ ISO 8601"),
-            ("camera_index", "หมายเลขกล้อง"),
-            ("lighting", "สภาพแสง"),
-            ("clip_number", "ลำดับคลิปในรอบ"),
-            ("quality", "สถานะ pending / accepted / rejected"),
-            ("reference_url", "แหล่งอ้างอิงรูปแบบท่า"),
-            ("sequence_file", "ตำแหน่งไฟล์ landmark"),
-            ("preview_file", "วิดีโอตัวอย่างสำหรับตรวจคุณภาพ"),
-            ("duration_frames", "จำนวนเฟรมที่บันทึกจริง"),
-            ("feature_count", "จำนวนคุณลักษณะต่อเฟรม"),
-            ("dataset_version", "เวอร์ชันรูปแบบข้อมูล"),
-            ("notes", "หมายเหตุเพิ่มเติม"),
-        )
-        tree = ttk.Treeview(details, columns=("field", "meaning"), show="headings", height=12)
-        tree.heading("field", text="ฟิลด์")
-        tree.heading("meaning", text="ความหมาย")
-        tree.column("field", width=180, stretch=False)
-        tree.column("meaning", width=650)
-        for field, meaning in fields:
-            tree.insert("", "end", values=(field, meaning))
-        tree.pack(fill="both", expand=True)
-
-    def refresh(self) -> None:
-        summary = self.app.dataset_store.summary()
-        self.total_var.set(str(summary["clips"]))
-        self.gesture_var.set(str(len(summary["gestures"])))
-        self.signer_var.set(str(summary["signers"]))
-
-    def initialize(self) -> None:
-        try:
-            self.app.dataset_store.initialize()
-            self.refresh()
-            self.app.set_status("เตรียมโฟลเดอร์ Dataset V2 แล้ว — ยังไม่มีการเปิดกล้อง")
-            messagebox.showinfo(
-                "เตรียม Dataset V2 แล้ว",
-                "สร้างโครงโฟลเดอร์และไฟล์ metadata เปล่าแล้ว\nไม่มีการเก็บคลิปหรือเทรนโมเดล",
-            )
-        except Exception as exc:
-            self.app.show_error("สร้าง Dataset V2 ไม่สำเร็จ", exc)
-
-
-class TrainingPageLegacy(BasePage):
-    """หน้าฝึกแบบแท็บรุ่นเก่าที่เก็บไว้เพื่ออ้างอิงและไม่ถูกสร้างในแอปปัจจุบัน."""
-
-    def __init__(self, parent: tk.Misc, app: "HandVoxApp") -> None:
-        super().__init__(
-            parent,
-            app,
-            "เตรียมเทรนและวัดผล",
-            "จัดการข้อมูลคำทั้งหมด + neutral ตรวจความพร้อม และเก็บผลทุกการทดลอง",
-        )
-        self.config = load_training_config()
-        self.signer_var = tk.StringVar(value=self.config.collection.signers[0])
-        self.session_var = tk.StringVar(value=self.config.collection.sessions[0])
-        self.gesture_var = tk.StringVar(value=self.config.all_classes[0])
-        self.lighting_var = tk.StringVar(value="unknown")
-        self.readiness_var = tk.StringVar(value="ยังไม่พร้อม")
-        self.accepted_var = tk.StringVar(value="0")
-        self.target_var = tk.StringVar(value=str(self.config.expected_clip_count))
-
-        summary = ttk.Frame(self, style="Page.TFrame")
-        summary.pack(fill="x", pady=(0, 16))
-        for column in range(4):
-            summary.columnconfigure(column, weight=1, uniform="training-summary")
-        for column, (title, value) in enumerate(
-            (
-                ("คำศัพท์ที่แสดง", tk.StringVar(value="16")),
-                ("รวม neutral", tk.StringVar(value=str(len(self.config.all_classes)))),
-                ("accepted / เป้าหมาย", self.accepted_var),
-                ("สถานะ", self.readiness_var),
-            )
-        ):
-            card = section_card(summary, 14)
-            card.grid(
-                row=0,
-                column=column,
-                sticky="nsew",
-                padx=(0 if column == 0 else 5, 0 if column == 3 else 5),
-            )
-            ttk.Label(card, text=title, style="CardMuted.TLabel").pack(anchor="w")
-            ttk.Label(card, textvariable=value, style="Metric.TLabel").pack(anchor="w", pady=(5, 0))
-
-        tabs = ttk.Notebook(self)
-        tabs.pack(fill="both", expand=True)
-        readiness_tab = ttk.Frame(tabs, style="Card.TFrame", padding=14)
-        collection_tab = ttk.Frame(tabs, style="Card.TFrame", padding=14)
-        quality_tab = ttk.Frame(tabs, style="Card.TFrame", padding=14)
-        experiments_tab = ttk.Frame(tabs, style="Card.TFrame", padding=14)
-        tabs.add(readiness_tab, text="ความพร้อม")
-        tabs.add(collection_tab, text="เก็บข้อมูล")
-        tabs.add(quality_tab, text="ตรวจคุณภาพ")
-        tabs.add(experiments_tab, text="ผลการทดลอง")
-
-        readiness_actions = ttk.Frame(readiness_tab, style="Card.TFrame")
-        readiness_actions.pack(fill="x", pady=(0, 10))
-        ttk.Label(
-            readiness_actions,
-            text="ต้องไม่มีรายการ ‘ต้องแก้’ จึงจะเริ่มเทรนได้",
-            style="CardMuted.TLabel",
-        ).pack(side="left")
-        ttk.Button(readiness_actions, text="ตรวจใหม่", command=self.refresh).pack(side="right")
-        ttk.Button(
-            readiness_actions,
-            text="เทรนและสร้างรายงาน",
-            style="Accent.TButton",
-            command=self.start_training,
-        ).pack(side="right", padx=8)
-        self.readiness_tree = ttk.Treeview(
-            readiness_tab,
-            columns=("status", "message"),
-            show="headings",
-            height=14,
-        )
-        self.readiness_tree.heading("status", text="สถานะ")
-        self.readiness_tree.heading("message", text="รายละเอียด")
-        self.readiness_tree.column("status", width=90, anchor="center", stretch=False)
-        self.readiness_tree.column("message", width=770)
-        self.readiness_tree.tag_configure("ok", foreground=COLORS["success"])
-        self.readiness_tree.tag_configure("warning", foreground=COLORS["warning"])
-        self.readiness_tree.tag_configure("error", foreground=COLORS["danger"])
-        self.readiness_tree.pack(fill="both", expand=True)
-
-        collection_tab.columnconfigure(1, weight=1)
-        fields = (
-            ("ผู้ทำท่า", self.signer_var, self.config.collection.signers),
-            ("รอบเก็บข้อมูล", self.session_var, self.config.collection.sessions),
-            ("ท่า", self.gesture_var, self.config.all_classes),
-            ("สภาพแสง", self.lighting_var, ("unknown", "bright", "normal", "dim", "backlit")),
-        )
-        for row, (label, variable, values) in enumerate(fields):
-            ttk.Label(collection_tab, text=label, style="Card.TLabel").grid(
-                row=row, column=0, sticky="w", pady=8
-            )
-            ttk.Combobox(
-                collection_tab,
-                textvariable=variable,
-                values=values,
-                state="readonly",
-                width=30,
-            ).grid(row=row, column=1, sticky="w", padx=(14, 0), pady=8)
-        ttk.Label(
-            collection_tab,
-            text=(
-                "แต่ละคนเก็บคลาสละ 10 คลิป แบ่ง session_01 และ session_02 อย่างละ 5 คลิป\n"
-                "คลิปใหม่จะเป็น pending และจะยังไม่ถูกนำไปเทรนจนกว่าจะกด accepted"
-            ),
-            style="CardMuted.TLabel",
-            justify="left",
-        ).grid(row=4, column=0, columnspan=2, sticky="w", pady=(14, 10))
-        ttk.Button(
-            collection_tab,
-            text="เปิดกล้องเก็บชุดที่เลือก",
-            style="Accent.TButton",
-            command=self.start_collection,
-        ).grid(row=5, column=0, columnspan=2, sticky="w")
-
-        quality_actions = ttk.Frame(quality_tab, style="Card.TFrame")
-        quality_actions.pack(fill="x", pady=(0, 10))
-        ttk.Button(quality_actions, text="เปิดวิดีโอตัวอย่าง", command=self.open_preview).pack(side="left")
-        ttk.Button(quality_actions, text="ตั้งเป็น accepted", command=lambda: self.set_selected_quality("accepted")).pack(side="right")
-        ttk.Button(quality_actions, text="ตั้งเป็น rejected", command=lambda: self.set_selected_quality("rejected")).pack(side="right", padx=8)
-        ttk.Button(quality_actions, text="กลับเป็น pending", command=lambda: self.set_selected_quality("pending")).pack(side="right")
-        self.quality_tree = ttk.Treeview(
-            quality_tab,
-            columns=("gesture", "signer", "session", "quality", "time", "preview"),
-            show="headings",
-            selectmode="extended",
-            height=13,
-        )
-        for column, title, width in (
-            ("gesture", "ท่า", 130),
-            ("signer", "ผู้ทำท่า", 100),
-            ("session", "รอบ", 100),
-            ("quality", "คุณภาพ", 90),
-            ("time", "เวลา", 150),
-            ("preview", "วิดีโอ", 80),
-        ):
-            self.quality_tree.heading(column, text=title)
-            self.quality_tree.column(column, width=width, stretch=column == "gesture")
-        self.quality_tree.tag_configure("accepted", foreground=COLORS["success"])
-        self.quality_tree.tag_configure("pending", foreground=COLORS["warning"])
-        self.quality_tree.tag_configure("rejected", foreground=COLORS["danger"])
-        self.quality_tree.pack(fill="both", expand=True)
-
-        experiment_actions = ttk.Frame(experiments_tab, style="Card.TFrame")
-        experiment_actions.pack(fill="x", pady=(0, 10))
-        ttk.Label(
-            experiment_actions,
-            text="โมเดลจากการทดลองจะไม่แทนโมเดลหลักจนกว่าจะเลือกติดตั้ง",
-            style="CardMuted.TLabel",
-        ).pack(side="left")
-        ttk.Button(experiment_actions, text="เปิดรายงาน", command=self.open_experiment_report).pack(side="right")
-        ttk.Button(experiment_actions, text="ติดตั้งโมเดลที่ผ่าน", command=self.activate_selected).pack(side="right", padx=8)
-        self.experiment_tree = ttk.Treeview(
-            experiments_tab,
-            columns=("id", "accuracy", "f1", "passed", "created"),
-            show="headings",
-            height=13,
-        )
-        for column, title, width in (
-            ("id", "รหัสการทดลอง", 170),
-            ("accuracy", "Accuracy", 100),
-            ("f1", "Macro F1", 100),
-            ("passed", "ผลเกณฑ์", 100),
-            ("created", "เวลา", 190),
-        ):
-            self.experiment_tree.heading(column, text=title)
-            self.experiment_tree.column(column, width=width, stretch=column == "created")
-        self.experiment_tree.tag_configure("passed", foreground=COLORS["success"])
-        self.experiment_tree.tag_configure("failed", foreground=COLORS["danger"])
-        self.experiment_tree.pack(fill="both", expand=True)
-
-    def refresh(self) -> None:
-        self.config = load_training_config()
-        report = preflight(self.config, self.app.dataset_store)
-        self.accepted_var.set(f"{report.accepted_clips} / {report.expected_target_clips}")
-        self.readiness_var.set("พร้อม" if report.ready else "ยังไม่พร้อม")
-        for row in self.readiness_tree.get_children():
-            self.readiness_tree.delete(row)
-        labels = {"ok": "พร้อม", "warning": "ควรตรวจ", "error": "ต้องแก้"}
-        for item in report.items:
-            self.readiness_tree.insert(
-                "",
-                "end",
-                values=(labels.get(item.status, item.status), item.message),
-                tags=(item.status,),
-            )
-        self._refresh_quality()
-        self._refresh_experiments()
-
-    def _refresh_quality(self) -> None:
-        for row in self.quality_tree.get_children():
-            self.quality_tree.delete(row)
-        for record in reversed(self.app.dataset_store.records()):
-            self.quality_tree.insert(
-                "",
-                "end",
-                iid=record.clip_id,
-                values=(
-                    record.gesture_name,
-                    record.signer_id,
-                    record.session_id,
-                    record.quality,
-                    record.recorded_at,
-                    "มี" if record.preview_file else "ไม่มี",
-                ),
-                tags=(record.quality,),
-            )
-
-    def _refresh_experiments(self) -> None:
-        for row in self.experiment_tree.get_children():
-            self.experiment_tree.delete(row)
-        for item in list_experiments():
-            tag = "passed" if item["passed"] else "failed"
-            self.experiment_tree.insert(
-                "",
-                "end",
-                iid=item["id"],
-                values=(
-                    item["id"],
-                    f"{item['accuracy']:.4f}",
-                    f"{item['macro_f1']:.4f}",
-                    "ผ่าน" if item["passed"] else "ยังไม่ผ่าน",
-                    item["created_at"],
-                ),
-                tags=(tag,),
-            )
-
-    def start_collection(self) -> None:
-        if not messagebox.askyesno(
-            "เปิดกล้องเก็บข้อมูล",
-            f"ผู้ทำท่า: {self.signer_var.get()}\n"
-            f"รอบ: {self.session_var.get()}\n"
-            f"ท่า: {self.gesture_var.get()}\n\nต้องการเปิดกล้องหรือไม่?",
-        ):
-            return
-        arguments = (
-            "--signer", self.signer_var.get(),
-            "--session", self.session_var.get(),
-            "--gesture", self.gesture_var.get(),
-            "--lighting", self.lighting_var.get(),
-        )
-        try:
-            self.app.launcher.launch("collect_v2", arguments)
-            self.app.set_status("เปิดเครื่องมือเก็บ Dataset V2 แล้ว")
-        except Exception as exc:
-            self.app.show_error("เปิดเครื่องมือเก็บข้อมูลไม่สำเร็จ", exc)
-
-    def start_training(self) -> None:
-        report = preflight(self.config, self.app.dataset_store)
-        if not report.ready:
-            messagebox.showwarning(
-                "ข้อมูลยังไม่พร้อม",
-                "ยังมีรายการ ‘ต้องแก้’ ในแท็บความพร้อม จึงยังไม่เริ่มเทรน",
-            )
-            return
-        if not messagebox.askyesno(
-            "เริ่มเทรนและวัดผล",
-            "ระบบจะประเมินแบบสลับสมาชิก 2 คนและสร้างไฟล์รายงาน\n"
-            "โมเดลหลักจะยังไม่ถูกเขียนทับ ต้องการดำเนินการต่อหรือไม่?",
-        ):
-            return
-        try:
-            self.app.launcher.launch("train_v2", ("train",))
-            self.app.set_status("เริ่ม workflow เทรนและวัดผลในหน้าต่างใหม่แล้ว")
-        except Exception as exc:
-            self.app.show_error("เริ่มเทรนไม่สำเร็จ", exc)
-
-    def set_selected_quality(self, quality: str) -> None:
-        selected = self.quality_tree.selection()
-        if not selected:
-            return
-        try:
-            updated = self.app.dataset_store.set_quality(selected, quality)
-            self.app.set_status(f"ปรับคุณภาพ {updated} คลิปเป็น {quality}")
-            self.refresh()
-        except Exception as exc:
-            self.app.show_error("ปรับสถานะคลิปไม่สำเร็จ", exc)
-
-    def open_preview(self) -> None:
-        selected = self.quality_tree.selection()
-        if len(selected) != 1:
-            messagebox.showinfo("เลือกหนึ่งคลิป", "กรุณาเลือกคลิปหนึ่งรายการ")
-            return
-        record = next(
-            (item for item in self.app.dataset_store.records() if item.clip_id == selected[0]),
-            None,
-        )
-        if record is None or not record.preview_file:
-            messagebox.showinfo("ไม่มีวิดีโอ", "คลิปนี้ไม่มีวิดีโอตัวอย่าง")
-            return
-        path = self.app.dataset_store.resolve_data_path(record.preview_file)
-        if not path.exists():
-            messagebox.showerror("ไม่พบไฟล์", str(path))
-            return
-        os.startfile(path)
-
-    def _selected_experiment(self):
-        selected = self.experiment_tree.selection()
-        if len(selected) != 1:
-            return None
-        return next((item for item in list_experiments() if item["id"] == selected[0]), None)
-
-    def open_experiment_report(self) -> None:
-        item = self._selected_experiment()
-        if item is None:
-            messagebox.showinfo("เลือกผลการทดลอง", "กรุณาเลือกผลการทดลองหนึ่งรายการ")
-            return
-        report = item["path"] / "report.md"
-        os.startfile(report if report.exists() else item["path"])
-
-    def activate_selected(self) -> None:
-        item = self._selected_experiment()
-        if item is None:
-            messagebox.showinfo("เลือกผลการทดลอง", "กรุณาเลือกผลการทดลองหนึ่งรายการ")
-            return
-        if not item["passed"]:
-            messagebox.showwarning("ยังไม่ผ่านเกณฑ์", "ติดตั้งได้เฉพาะโมเดลที่ผ่านเกณฑ์")
-            return
-        if not messagebox.askyesno(
-            "ติดตั้งโมเดลใหม่",
-            f"ติดตั้งผล {item['id']} หรือไม่?\n"
-            "โมเดลและรายการคำเดิมจะถูกสำรองก่อนทุกครั้ง",
-        ):
-            return
-        try:
-            backup = activate_experiment(item["path"])
-            self.app.catalog = GestureCatalog()
-            messagebox.showinfo("ติดตั้งแล้ว", f"สำรองโมเดลเดิมไว้ที่\n{backup}")
-            self.app.set_status(f"ติดตั้งโมเดลจากการทดลอง {item['id']} แล้ว")
-        except Exception as exc:
-            self.app.show_error("ติดตั้งโมเดลไม่สำเร็จ", exc)
-
-
-# ── หน้า 5: Wizard เตรียมเทรน 5 ขั้น ───────────────────────
 class TrainingPage(BasePage):
     """นำผู้ใช้ยืนยันคำ เก็บ/ตรวจคลิป เทรน และอ่านผลตามลำดับ."""
 
@@ -1316,8 +1028,8 @@ class TrainingPage(BasePage):
         super().__init__(
             parent,
             app,
-            "เตรียมเทรนทีละขั้น",
-            "ทำตามขั้นที่ 1–5 ปุ่มเทรนจะเปิดเมื่อข้อมูลพร้อม และอ่านผลได้ทันทีเมื่อเสร็จ",
+            "เตรียมเทรน",
+            "ข้อมูลฝึกแยกจากชุดวัดผู้ใช้ใหม่",
         )
         self.base_config = load_training_config()
         active_names = [item.name for item in app.catalog.load_active()]
@@ -1352,6 +1064,8 @@ class TrainingPage(BasePage):
         self.quality_filter_var = tk.StringVar(value="รอตรวจ")
         self.collection_progress_var = tk.DoubleVar(value=0)
         self.collection_summary_var = tk.StringVar(value="ยังไม่มีข้อมูลในชุดนี้")
+        self.collection_plan_var = tk.StringVar(value="กำลังอ่านแผนเก็บข้อมูล...")
+        self.session_guide_var = tk.StringVar(value="")
         self.scope_summary_var = tk.StringVar(value="กำลังตรวจรายการท่า...")
         self.readiness_summary_var = tk.StringVar(value="กำลังตรวจความพร้อม...")
         self.quality_stat_vars = {
@@ -1361,41 +1075,8 @@ class TrainingPage(BasePage):
         }
         self._last_report = None
         self._last_experiments = []
-        self._step_buttons: list[tk.Button] = []
-
-        self._build_stepper()
         self._build_tabs()
 
-    def _build_stepper(self) -> None:
-        stepper = tk.Frame(self, background=COLORS["background"])
-        stepper.pack(fill="x", pady=(0, 12))
-        for column in range(5):
-            stepper.columnconfigure(column, weight=1, uniform="training-step")
-        for index, title in enumerate(self.STEP_TITLES):
-            button = tk.Button(
-                stepper,
-                text=f"{title}\nรอดำเนินการ",
-                font=("Leelawadee UI", 10, "bold"),
-                foreground=COLORS["muted"],
-                background=COLORS["neutral_soft"],
-                activebackground=COLORS["info_soft"],
-                activeforeground=COLORS["accent"],
-                relief="flat",
-                borderwidth=0,
-                padx=8,
-                pady=10,
-                justify="left",
-                anchor="w",
-                cursor="hand2",
-                command=lambda tab=index: self.show_step(tab),
-            )
-            button.grid(
-                row=0,
-                column=index,
-                sticky="nsew",
-                padx=(0 if index == 0 else 4, 0 if index == 4 else 4),
-            )
-            self._step_buttons.append(button)
 
     def _build_tabs(self) -> None:
         self.notebook = ttk.Notebook(self)
@@ -1517,10 +1198,7 @@ class TrainingPage(BasePage):
         info.pack(fill="x", pady=(0, 12))
         tk.Label(
             info,
-            text=(
-                "ช่องด้านล่างคือป้ายกำกับของคลิปที่จะถ่าย ไม่ใช่รายการคำที่ยังไม่ได้เทรน "
-                "· เก็บข้อมูลเสริมของคำเดิมได้"
-            ),
+            textvariable=self.collection_plan_var,
             font=("Leelawadee UI", 10, "bold"),
             foreground=COLORS["accent"],
             background=COLORS["info_soft"],
@@ -1538,7 +1216,7 @@ class TrainingPage(BasePage):
         fields = (
             ("ผู้ทำท่า", self.signer_var, self.config.collection.signers),
             ("รอบเก็บข้อมูล", self.session_var, self.config.collection.sessions),
-            # รายการเก็บข้อมูลแสดงคำในโมเดล + คำใหม่รอบนี้ + neutral
+            # รายการเก็บข้อมูลแสดงคำในโมเดล + คำใหม่ + neutral + unknown
             # เพื่อให้เพิ่มคำต่อเนื่องโดยไม่ทำคำเดิมหาย
             ("ท่าที่จะถ่ายในคลิปนี้", self.gesture_var, self.config.all_classes),
             ("สภาพแสง", self.lighting_var, ("normal", "bright", "dim", "backlit", "unknown")),
@@ -1556,22 +1234,27 @@ class TrainingPage(BasePage):
             combo.grid(row=row, column=1, sticky="ew", padx=(14, 0), pady=7)
             combo.bind("<<ComboboxSelected>>", lambda _event: self.update_collection_summary())
             self.collection_combos.append(combo)
+        capture_actions = ttk.Frame(form, style="OutlinedCard.TFrame")
+        capture_actions.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(16, 0))
+        capture_actions.columnconfigure((0, 1), weight=1)
         ttk.Button(
-            form,
-            text="เปิดกล้องเก็บชุดนี้",
+            capture_actions,
+            text="เปิดกล้องถ่ายให้ครบชุด",
             style="Accent.TButton",
-            command=self.start_collection,
-        ).grid(row=4, column=0, columnspan=2, sticky="ew", pady=(16, 0))
+            command=lambda: self.start_collection("standard"),
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        ttk.Button(
+            capture_actions,
+            text="ถ่ายเพิ่ม 1 คลิป",
+            command=lambda: self.start_collection("extra"),
+        ).grid(row=0, column=1, sticky="ew", padx=(5, 0))
+
         ttk.Label(
             form,
-            text=(
-                "รายการประกอบด้วยคำในโมเดลปัจจุบัน + คำใหม่ที่เลือก + neutral "
-                "เพื่อป้องกันคำเดิมหายหลังเทรน"
-            ),
+            text="เลือก neutral เมื่อต้องการพักมือ หรือ unknown สำหรับท่านอกคำศัพท์",
             style="CardMuted.TLabel",
-            wraplength=470,
-            justify="left",
-        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(10, 0))
+            wraplength=450,
+        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(12, 0))
 
         status = section_card(body, 14)
         status.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
@@ -1591,11 +1274,7 @@ class TrainingPage(BasePage):
         ).pack(fill="x", pady=(0, 14))
         ttk.Label(
             status,
-            text=(
-                "Session 1: แสงและตำแหน่งปกติ\n"
-                "Session 2: เปลี่ยนเสื้อ ระยะ หรือสภาพแสง\n\n"
-                "คลิปใหม่จะเป็น pending จนกว่าจะตรวจวิดีโอ"
-            ),
+            textvariable=self.session_guide_var,
             style="CardMuted.TLabel",
             justify="left",
             wraplength=300,
@@ -1604,35 +1283,12 @@ class TrainingPage(BasePage):
     def _build_quality_tab(self) -> None:
         stats = ttk.Frame(self.quality_tab, style="Card.TFrame")
         stats.pack(fill="x", pady=(0, 10))
-        for column, (key, title, soft, strong) in enumerate(
-            (
-                ("pending", "รอตรวจ", COLORS["warning_soft"], COLORS["warning"]),
-                ("accepted", "ผ่านแล้ว", COLORS["success_soft"], COLORS["success"]),
-                ("rejected", "ไม่ผ่าน", COLORS["danger_soft"], COLORS["danger"]),
+        for key, title in (("pending", "รอตรวจ"), ("accepted", "ยอมรับแล้ว"), ("rejected", "ไม่ใช้")):
+            ttk.Label(stats, text=title, style="CardMuted.TLabel").pack(side="left", padx=(0, 6))
+            ttk.Label(stats, textvariable=self.quality_stat_vars[key], style="Card.TLabel").pack(
+                side="left", padx=(0, 24)
             )
-        ):
-            stats.columnconfigure(column, weight=1, uniform="quality-stat")
-            box = tk.Frame(stats, background=soft)
-            box.grid(
-                row=0,
-                column=column,
-                sticky="nsew",
-                padx=(0 if column == 0 else 5, 0 if column == 2 else 5),
-            )
-            tk.Label(
-                box,
-                text=title,
-                font=("Leelawadee UI", 9, "bold"),
-                foreground=strong,
-                background=soft,
-            ).pack(anchor="w", padx=12, pady=(7, 0))
-            tk.Label(
-                box,
-                textvariable=self.quality_stat_vars[key],
-                font=("Leelawadee UI", 18, "bold"),
-                foreground=strong,
-                background=soft,
-            ).pack(anchor="w", padx=12, pady=(0, 7))
+        ttk.Button(stats, text="เปิดโฟลเดอร์ข้อมูล", command=self.open_dataset_folder).pack(side="right")
 
         actions = ttk.Frame(self.quality_tab, style="Card.TFrame")
         actions.pack(fill="x", pady=(0, 10))
@@ -1649,25 +1305,30 @@ class TrainingPage(BasePage):
         ttk.Button(actions, text="เปิดวิดีโอ", command=self.open_preview).pack(side="left")
         ttk.Button(
             actions,
+            text="ถ่ายแทน",
+            command=self.retake_selected_clip,
+        ).pack(side="left", padx=8)
+        ttk.Button(
+            actions,
             text="ไม่ผ่าน",
             style="Danger.TButton",
             command=lambda: self.set_selected_quality("rejected"),
         ).pack(side="right")
         ttk.Button(
             actions,
-            text="ผ่าน ใช้เทรนได้",
+            text="ยอมรับ",
             style="Success.TButton",
             command=lambda: self.set_selected_quality("accepted"),
         ).pack(side="right", padx=8)
         ttk.Button(
             actions,
-            text="กลับไปรอตรวจ",
+            text="รอตรวจ",
             style="Muted.TButton",
             command=lambda: self.set_selected_quality("pending"),
         ).pack(side="right")
         self.quality_tree = ttk.Treeview(
             self.quality_tab,
-            columns=("gesture", "signer", "session", "quality", "time", "preview"),
+            columns=("gesture", "signer", "session", "mode", "quality", "time", "preview"),
             show="headings",
             selectmode="extended",
             height=9,
@@ -1676,6 +1337,7 @@ class TrainingPage(BasePage):
             ("gesture", "คำ/คลาส", 145),
             ("signer", "ผู้ทำท่า", 100),
             ("session", "รอบ", 100),
+            ("mode", "ประเภทคลิป", 100),
             ("quality", "สถานะ", 90),
             ("time", "วันเวลา", 210),
             ("preview", "วิดีโอ", 80),
@@ -1694,8 +1356,10 @@ class TrainingPage(BasePage):
         self.quality_tree.bind("<Double-1>", lambda _event: self.open_preview())
 
     def _build_readiness_tab(self) -> None:
+        advanced = Disclosure(self.readiness_tab, "ตัวเลือกขั้นสูง: เทรนด่วน")
+        advanced.pack(fill="x", pady=(0, 10))
         quick_box = tk.Frame(
-            self.readiness_tab,
+            advanced.body,
             background=COLORS["warning_soft"],
             highlightbackground="#f59e0b",
             highlightthickness=1,
@@ -1703,7 +1367,7 @@ class TrainingPage(BasePage):
         quick_box.pack(fill="x", pady=(0, 10))
         tk.Label(
             quick_box,
-            text="โหมดด่วน: เพิ่ม 1 ท่าแล้วทดลองกล้องได้เลย",
+            text="โหมดด่วน: ทดลอง 1 ท่าก่อนข้อมูลมาตรฐานครบ",
             font=("Leelawadee UI", 11, "bold"),
             foreground=COLORS["warning"],
             background=COLORS["warning_soft"],
@@ -1770,57 +1434,50 @@ class TrainingPage(BasePage):
         self.readiness_tree.pack(side="left", fill="both", expand=True)
 
     def _build_experiments_tab(self) -> None:
-        header = ttk.Frame(self.experiments_tab, style="Card.TFrame")
-        header.pack(fill="x", pady=(0, 10))
-        ttk.Label(
-            header,
-            text="ผลแต่ละรอบถูกเก็บแยกกัน โมเดลหลักจะไม่ถูกเปลี่ยนอัตโนมัติ",
-            style="CardMuted.TLabel",
-        ).pack(side="left")
+        actions = ttk.Frame(self.experiments_tab, style="Card.TFrame")
+        actions.pack(fill="x", pady=(0, 12))
         self.open_report_button = ttk.Button(
-            header, text="เปิดรายงาน", command=self.open_experiment_report
+            actions, text="เปิดรายงาน", command=self.open_experiment_report
         )
-        self.open_report_button.pack(side="right")
+        self.open_report_button.pack(side="left")
+        self.external_evaluation_button = ttk.Button(
+            actions, text="วัดผู้ใช้ใหม่", command=self.open_external_evaluation
+        )
+        self.external_evaluation_button.pack(side="left", padx=8)
         self.activate_button = ttk.Button(
-            header,
-            text="ติดตั้งผลที่ผ่าน",
-            style="Success.TButton",
-            command=self.activate_selected,
+            actions, text="ติดตั้งโมเดล", style="Accent.TButton", command=self.activate_selected
         )
-        self.activate_button.pack(side="right", padx=8)
-        self.test_camera_button = ttk.Button(
-            header,
-            text="ทดสอบด้วยกล้อง",
-            style="Accent.TButton",
-            command=self.test_selected_with_camera,
-        )
-        self.test_camera_button.pack(side="right")
-        self.open_report_button.state(["disabled"])
-        self.activate_button.state(["disabled"])
-        self.test_camera_button.state(["disabled"])
+        self.activate_button.pack(side="right")
+        for button in (self.open_report_button, self.external_evaluation_button, self.activate_button):
+            button.state(["disabled"])
+        self.experiment_detail_var = tk.StringVar(value="เลือกผลการทดลอง")
+        ttk.Label(
+            self.experiments_tab, textvariable=self.experiment_detail_var,
+            style="CardMuted.TLabel", wraplength=880,
+        ).pack(fill="x", pady=(0, 12))
         self.experiment_tree = ttk.Treeview(
             self.experiments_tab,
-            columns=("id", "mode", "accuracy", "f1", "passed", "created"),
-            show="headings",
-            height=11,
+            columns=("created", "target", "mode", "accuracy", "f1", "passed"),
+            show="headings", height=12,
         )
         for column, title, width in (
-            ("id", "รหัสการทดลอง", 205),
-            ("mode", "โหมด", 90),
-            ("accuracy", "Accuracy", 100),
-            ("f1", "Macro F1", 100),
-            ("passed", "ผลเกณฑ์", 100),
-            ("created", "วันเวลา", 220),
+            ("created", "วันที่เทรน", 160),
+            ("target", "คำที่เพิ่ม", 95),
+            ("mode", "วิธีวัด", 155),
+            ("accuracy", "Accuracy", 105),
+            ("f1", "Macro F1", 105),
+            ("passed", "สถานะ", 195),
         ):
             self.experiment_tree.heading(column, text=title)
-            self.experiment_tree.column(column, width=width, stretch=column == "created")
+            self.experiment_tree.column(column, width=width, stretch=column == "passed")
         self.experiment_tree.tag_configure("passed", foreground=COLORS["success"])
         self.experiment_tree.tag_configure("failed", foreground=COLORS["danger"])
-        experiment_scroll = ttk.Scrollbar(
+        self.experiment_tree.tag_configure("installed", foreground=COLORS["accent"])
+        scrollbar = ttk.Scrollbar(
             self.experiments_tab, orient="vertical", command=self.experiment_tree.yview
         )
-        self.experiment_tree.configure(yscrollcommand=experiment_scroll.set)
-        experiment_scroll.pack(side="right", fill="y")
+        self.experiment_tree.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side="right", fill="y")
         self.experiment_tree.pack(side="left", fill="both", expand=True)
         self.experiment_tree.bind("<<TreeviewSelect>>", self._update_experiment_actions)
 
@@ -1833,11 +1490,38 @@ class TrainingPage(BasePage):
         if isinstance(page, GesturesPage):
             page.show_planned()
 
+
     def _session_target(self, session_id: str) -> int:
+        return session_clip_target(self.config, session_id)
+
+    def _refresh_collection_plan_text(self) -> None:
+        """อธิบายจำนวนคลิปและเป้าหมายแต่ละรอบจาก config จริง ไม่ใช้เลขฝังใน UI."""
         sessions = self.config.collection.sessions
-        target = self.config.collection.target_clips_per_signer_per_class
-        base, remainder = divmod(target, len(sessions))
-        return base + (1 if sessions.index(session_id) < remainder else 0)
+        targets = [self._session_target(session) for session in sessions]
+        if len(set(targets)) == 1:
+            target_text = f"รอบละ {targets[0]} คลิป"
+        else:
+            target_text = "แต่ละรอบ " + ", ".join(
+                f"{session}={target}" for session, target in zip(sessions, targets)
+            )
+        self.collection_plan_var.set(
+            f"เลือกคน รอบ และคำให้ตรงก่อนถ่าย · {target_text} รวม {len(sessions)} รอบ "
+            "· ถ่ายเพิ่มหรือถ่ายแทนคลิปเดิมได้โดยข้อมูลไม่หาย"
+        )
+        suggestions = (
+            "ตำแหน่งและแสงปกติ",
+            "เปลี่ยนเสื้อหรือพื้นหลัง",
+            "เปลี่ยนระยะหรือมุมกล้อง",
+            "เปลี่ยนสภาพแสง",
+        )
+        guide_lines = [
+            f"{session}: {suggestions[index] if index < len(suggestions) else 'เปลี่ยนสภาพแวดล้อม'}"
+            for index, session in enumerate(sessions)
+        ]
+        self.session_guide_var.set(
+            "\n".join(guide_lines)
+            + "\n\nคลิปใหม่จะเป็น pending จนกว่าจะตรวจวิดีโอ"
+        )
 
     def update_collection_summary(self) -> None:
         records = self.app.dataset_store.records()
@@ -1855,10 +1539,18 @@ class TrainingPage(BasePage):
         usable = accepted + pending
         self.collection_progress_var.set(min(100, usable / max(target, 1) * 100))
         remaining = max(0, target - usable)
+        if remaining:
+            status = f"เหลือเก็บอีก {remaining} คลิป"
+        elif usable > target:
+            status = f"ครบเป้าหมายแล้ว · มีคลิปเสริม {usable - target} คลิป"
+        elif pending:
+            status = "เก็บครบชุดแล้ว · ไปตรวจคลิปที่ยังรอตรวจ"
+        else:
+            status = "เก็บและตรวจผ่านครบชุดนี้แล้ว"
         self.collection_summary_var.set(
             f"{self.gesture_var.get()} · {self.signer_var.get()} · {self.session_var.get()}\n"
             f"มี {usable}/{target} คลิป (ผ่าน {accepted}, รอตรวจ {pending})\n"
-            + (f"เหลือเก็บอีก {remaining} คลิป" if remaining else "เก็บครบชุดนี้แล้ว")
+            + status
         )
 
     def _active_names(self) -> tuple[str, ...]:
@@ -1911,6 +1603,8 @@ class TrainingPage(BasePage):
         self.collection_combos[0].configure(values=self.config.collection.signers)
         self.collection_combos[1].configure(values=self.config.collection.sessions)
         self.collection_combos[2].configure(values=collection_order)
+        if hasattr(self, "collection_plan_var"):
+            self._refresh_collection_plan_text()
         if self.gesture_var.get() not in self.config.all_classes:
             self.gesture_var.set(target or self.config.all_classes[0])
         new_clip_count = (
@@ -1923,7 +1617,8 @@ class TrainingPage(BasePage):
                 f"กำลังเตรียมเพิ่ม “{target}” · รอเพิ่มทั้งหมด {len(targets)} คำ"
             )
             self.target_summary_var.set(
-                f"รอบนี้เพิ่ม “{target}” · เทรนรวม {len(self.config.visible_gestures)} คำ + neutral "
+                f"รอบนี้เพิ่ม “{target}” · เทรนรวม {len(self.config.visible_gestures)} คำ "
+                "+ Neutral + Unknown "
                 f"· เป้าหมายสะสม {self.config.expected_clip_count} คลิป\n"
                 f"หลังมีข้อมูลฐานแล้ว รอบถัดไปเก็บเพิ่มเฉพาะคำใหม่ประมาณ {new_clip_count} คลิป"
             )
@@ -1958,14 +1653,18 @@ class TrainingPage(BasePage):
             if quick_config
             else None
         )
-        experiments = list_experiments(target_gesture=self.target_var.get())
+        all_experiments = list_experiments()
+        experiments = [
+            item for item in all_experiments
+            if item.get("target_gesture") == self.target_var.get()
+        ]
         self._last_report = report
         self._last_experiments = experiments
         scope_ready_count = self._refresh_scope()
         self._refresh_quality(records)
         self._refresh_readiness(report)
         self._refresh_quick_readiness(quick_report)
-        self._refresh_experiments(experiments)
+        self._refresh_experiments(all_experiments)
         self.update_collection_summary()
         self._refresh_workflow_summary(scope_ready_count, records, report, experiments)
 
@@ -2063,6 +1762,9 @@ class TrainingPage(BasePage):
         wanted = self.QUALITY_FILTERS[self.quality_filter_var.get()]
         for row in self.quality_tree.get_children():
             self.quality_tree.delete(row)
+        superseded_ids = {
+            item.supersedes_clip_id for item in records if item.supersedes_clip_id
+        }
         for record in reversed(records):
             if wanted != "all" and record.quality != wanted:
                 continue
@@ -2074,8 +1776,17 @@ class TrainingPage(BasePage):
                     record.gesture_name,
                     record.signer_id,
                     record.session_id,
+                    (
+                        "ถูกแทนแล้ว"
+                        if record.clip_id in superseded_ids
+                        else {
+                            "standard": "ชุดหลัก",
+                            "extra": "ถ่ายเพิ่ม",
+                            "retake": "ถ่ายใหม่",
+                        }.get(record.capture_mode, record.capture_mode)
+                    ),
                     record.quality,
-                    record.recorded_at,
+                    experiment_time_label(record.recorded_at),
                     "มี" if record.preview_file else "ไม่มี",
                 ),
                 tags=(record.quality,),
@@ -2122,76 +1833,89 @@ class TrainingPage(BasePage):
         if report.ready:
             self.quick_summary_var.set(
                 f"พร้อม: มีคลิป accepted ของ “{self.target_var.get()}” {target_clips} คลิป "
-                "ระบบจะรวมข้อมูลฐานคำเดิม แล้วสร้างโมเดลทดลองทันที"
+                "จากอย่างน้อย 2 กลุ่มผู้ทำท่า+รอบ · ข้อมูลคำเดิมใช้ฝึกเท่านั้น "
+                "ผลวัดนี้เป็นผลเบื้องต้น"
             )
             self.quick_train_button.state(["!disabled"])
         else:
+            errors = [item.message for item in report.items if item.status == "error"]
+            detail = " · ".join(errors[:2]) if errors else "ข้อมูลยังไม่ผ่านเงื่อนไข"
             self.quick_summary_var.set(
-                f"ต้องมีคลิป accepted ของ “{self.target_var.get()}” อย่างน้อย 4 คลิป "
-                f"(ตอนนี้ {target_clips}) — ไม่ต้องเก็บคำเดิมซ้ำ"
+                f"ยังไม่พร้อม (accepted คำใหม่ {target_clips} คลิป): {detail}"
             )
             self.quick_train_button.state(["disabled"])
 
     def _refresh_experiments(self, experiments=None) -> None:
         experiments = experiments if experiments is not None else list_experiments()
+        self._last_experiments = experiments
+        selected = self.experiment_tree.selection()
+        installed_id = installed_experiment_id()
         for row in self.experiment_tree.get_children():
             self.experiment_tree.delete(row)
         for item in experiments:
-            tag = "passed" if item["passed"] else "failed"
+            installed = item["id"] == installed_id
+            status = "ผ่านเกณฑ์" if item["passed"] else "ไม่ผ่าน"
+            if installed:
+                status = "ใช้งานอยู่" if item["passed"] else "ใช้งานอยู่ (ทดลอง)"
+            mode = "ด่วน" if item.get("mode") == "quick_trial" else {
+                "known_signers_session_holdout": "คนเดิม / แยกรอบ",
+                "leave_one_signer_out": "ข้ามคน",
+            }.get(item.get("evaluation_strategy"), "มาตรฐาน")
             self.experiment_tree.insert(
-                "",
-                "end",
-                iid=item["id"],
+                "", "end", iid=item["id"],
                 values=(
-                    item["id"],
-                    "ด่วน" if item.get("mode") == "quick_trial" else "มาตรฐาน",
-                    f"{item['accuracy']:.4f}",
-                    f"{item['macro_f1']:.4f}",
-                    "ผ่าน" if item["passed"] else "ยังไม่ผ่าน",
-                    item["created_at"],
+                    experiment_time_label(item["created_at"]),
+                    item.get("target_gesture") or "แผนรวม", mode,
+                    f"{item['accuracy']:.2%}", f"{item['macro_f1']:.2%}", status,
                 ),
-                tags=(tag,),
+                tags=("installed" if installed else "passed" if item["passed"] else "failed",),
             )
+        available_ids = {item["id"] for item in experiments}
         if experiments:
-            self.experiment_tree.selection_set(experiments[0]["id"])
-            self._update_experiment_actions()
-        else:
-            self.open_report_button.state(["disabled"])
-            self.activate_button.state(["disabled"])
-            self.test_camera_button.state(["disabled"])
+            selection = selected[0] if selected and selected[0] in available_ids else (
+                installed_id if installed_id in available_ids else experiments[0]["id"]
+            )
+            self.experiment_tree.selection_set(selection)
+        self._update_experiment_actions()
 
     def _update_experiment_actions(self, _event=None) -> None:
         item = self._selected_experiment()
+        self.experiment_detail_var.set(experiment_failure_summary(item))
+        title, action = experiment_primary_action(item, installed_experiment_id())
+        self.activate_button.configure(text=title)
+        state = ["disabled"] if action == "none" else ["!disabled"]
+        for button in (self.open_report_button, self.external_evaluation_button, self.activate_button):
+            button.state(state)
+
+    def open_dataset_folder(self) -> None:
+        try:
+            self.app.dataset_store.initialize()
+            os.startfile(self.app.dataset_store.root)
+        except Exception as error:
+            self.app.show_error("เปิดโฟลเดอร์ข้อมูลไม่สำเร็จ", error)
+
+    def open_external_evaluation(self) -> None:
+        item = self._selected_experiment()
         if item is None:
-            self.open_report_button.state(["disabled"])
-            self.activate_button.state(["disabled"])
-            self.test_camera_button.state(["disabled"])
             return
-        self.open_report_button.state(["!disabled"])
-        if item["passed"]:
-            self.activate_button.state(["!disabled"])
-            self.test_camera_button.state(["!disabled"])
-        else:
-            self.activate_button.state(["disabled"])
-            self.test_camera_button.state(["disabled"])
+        try:
+            from handvox.external_evaluation_ui import ExternalEvaluationDialog
+
+            ExternalEvaluationDialog(self, self.app, item)
+        except Exception as error:
+            messagebox.showerror("เปิดหน้าวัดผู้ใช้ใหม่ไม่สำเร็จ", str(error), parent=self)
 
     def _refresh_workflow_summary(self, scope_ready_count, records, report, experiments) -> None:
-        target = self.config.expected_clip_count
-        usable = sum(
-            item.gesture_name in self.config.all_classes and item.quality != "rejected"
-            for item in records
-        )
-        accepted = sum(
-            item.gesture_name in self.config.all_classes and item.quality == "accepted"
-            for item in records
-        )
-        pending = sum(
-            item.gesture_name in self.config.all_classes and item.quality == "pending"
-            for item in records
-        )
+        progress = training_plan_progress(self.config, records)
         scope_complete = scope_ready_count == len(self.config.visible_gestures)
-        collection_complete = usable >= target
-        quality_complete = accepted >= target and pending == 0
+        collection_complete = (
+            progress["capture_groups_complete"]
+            == progress["capture_groups_total"]
+        )
+        quality_complete = (
+            progress["accepted_scopes_complete"]
+            == progress["accepted_scopes_total"]
+        )
         has_experiment = bool(experiments)
         latest_passed = bool(experiments and experiments[0]["passed"])
         stage_states = [
@@ -2203,8 +1927,8 @@ class TrainingPage(BasePage):
         ]
         details = (
             f"{scope_ready_count}/{len(self.config.visible_gestures)} พร้อม",
-            f"{usable}/{target} คลิป",
-            f"accepted {accepted}",
+            f"{progress['capture_groups_complete']}/{progress['capture_groups_total']} ชุดครบ",
+            f"{progress['accepted_scopes_complete']}/{progress['accepted_scopes_total']} คน×คลาสผ่าน",
             "มีผลแล้ว" if has_experiment else ("พร้อมเริ่ม" if report.ready else "รอข้อมูล"),
             "ผ่านเกณฑ์" if latest_passed else ("ต้องปรับ" if has_experiment else "ยังไม่มีผล"),
         )
@@ -2212,28 +1936,23 @@ class TrainingPage(BasePage):
             self._set_step_state(index, state, detail)
 
     def _set_step_state(self, index: int, state: str, detail: str) -> None:
-        palette = {
-            "complete": (COLORS["success_soft"], COLORS["success"]),
-            "current": (COLORS["info_soft"], COLORS["accent"]),
-            "review": (COLORS["warning_soft"], COLORS["warning"]),
-            "upcoming": (COLORS["neutral_soft"], COLORS["muted"]),
-        }
-        background, foreground = palette[state]
-        self._step_buttons[index].configure(
-            text=f"{self.STEP_TITLES[index]}\n{detail}",
-            background=background,
-            foreground=foreground,
-            activebackground=background,
-            activeforeground=foreground,
-        )
+        suffix = " ✓" if state == "complete" else ""
+        self.notebook.tab(index, text=self.STEP_TITLES[index] + suffix)
 
-    def start_collection(self) -> None:
+
+    def start_collection(self, mode: str = "standard") -> None:
+        mode_labels = {
+            "standard": "ถ่ายเฉพาะจำนวนที่ยังขาดให้ครบชุด",
+            "extra": "ถ่ายข้อมูลเสริมเพิ่ม 1 คลิป แม้ชุดนี้ครบแล้ว",
+        }
+        if mode not in mode_labels:
+            raise ValueError(f"โหมดเก็บข้อมูลไม่ถูกต้อง: {mode}")
         if not messagebox.askyesno(
             "ยืนยันการเปิดกล้อง",
             f"ผู้ทำท่า: {self.signer_var.get()}\n"
             f"รอบ: {self.session_var.get()}\n"
             f"คำ/คลาส: {self.gesture_var.get()}\n\n"
-            "ระบบจะเก็บเฉพาะจำนวนที่ยังขาดในชุดนี้ ต้องการเปิดกล้องหรือไม่?",
+            f"{mode_labels[mode]}\nต้องการเปิดกล้องหรือไม่?",
         ):
             return
         arguments = (
@@ -2241,12 +1960,70 @@ class TrainingPage(BasePage):
             "--session", self.session_var.get(),
             "--gesture", self.gesture_var.get(),
             "--lighting", self.lighting_var.get(),
+            "--mode", mode,
         )
         try:
-            self.app.launcher.launch("collect_v2", arguments)
-            self.app.set_status("เปิดเครื่องมือเก็บ Dataset V2 แล้ว — กลับมากดตรวจใหม่เมื่อเก็บเสร็จ")
+            process = self.app.launcher.launch("collect_v2", arguments)
+            self.app.set_status("กำลังเก็บ Dataset V2 — หน้านี้จะอัปเดตเมื่อปิดกล้อง")
+            self.after(500, lambda: self._poll_collection(process))
         except Exception as exc:
             self.app.show_error("เปิดเครื่องมือเก็บข้อมูลไม่สำเร็จ", exc)
+
+    def retake_selected_clip(self) -> None:
+        """เปิดกล้องถ่ายหนึ่งคลิปแทนรายการที่เลือก โดยไม่ลบหลักฐานเดิม."""
+        selected = self.quality_tree.selection()
+        if len(selected) != 1:
+            messagebox.showinfo("เลือกหนึ่งคลิป", "กรุณาเลือกคลิปที่ต้องการถ่ายใหม่ 1 รายการ")
+            return
+        clip_id = selected[0]
+        records = self.app.dataset_store.records()
+        record = next((item for item in records if item.clip_id == clip_id), None)
+        if record is None:
+            messagebox.showwarning("ไม่พบคลิป", "รายการนี้อาจถูกเปลี่ยนแปลง กรุณากดตรวจอีกครั้ง")
+            return
+        replacement = next(
+            (item for item in records if item.supersedes_clip_id == record.clip_id),
+            None,
+        )
+        if replacement is not None:
+            messagebox.showinfo(
+                "คลิปนี้ถูกแทนแล้ว",
+                "เลือกคลิปล่าสุดที่อยู่ในคอลัมน์ ‘ประเภทคลิป: ถ่ายใหม่’ "
+                "หากต้องการถ่ายซ้ำอีกครั้ง",
+            )
+            return
+        if not messagebox.askyesno(
+            "ถ่ายคลิปนี้ใหม่",
+            f"คำ/คลาส: {record.gesture_name}\nผู้ทำท่า: {record.signer_id}\n"
+            f"รอบ: {record.session_id}\n\n"
+            "คลิปเดิมจะถูกเก็บไว้และทำเครื่องหมายว่าไม่ใช้เทรนเมื่อถ่ายคลิปใหม่สำเร็จ",
+        ):
+            return
+        arguments = (
+            "--signer", record.signer_id,
+            "--session", record.session_id,
+            "--gesture", record.gesture_name,
+            "--lighting", record.lighting,
+            "--mode", "retake",
+            "--retake-clip", record.clip_id,
+        )
+        try:
+            process = self.app.launcher.launch("collect_v2", arguments)
+            self.app.set_status("กำลังถ่ายคลิปใหม่ — คลิปเดิมจะเปลี่ยนสถานะเมื่อบันทึกสำเร็จ")
+            self.after(500, lambda: self._poll_collection(process))
+        except Exception as exc:
+            self.app.show_error("เปิดการถ่ายใหม่ไม่สำเร็จ", exc)
+
+    def _poll_collection(self, process) -> None:
+        """รีเฟรชจำนวนคลิปอัตโนมัติเมื่อหน้าต่างเก็บข้อมูลปิด."""
+        if process.poll() is None:
+            self.after(500, lambda: self._poll_collection(process))
+            return
+        self.refresh()
+        if process.returncode == 0:
+            self.app.set_status("เก็บข้อมูลเสร็จแล้ว — ตรวจวิดีโอในขั้นที่ 3")
+        else:
+            self.app.set_status("การเก็บข้อมูลหยุดก่อนเสร็จ — ตรวจหน้าต่างผลการทำงาน")
 
     def start_training(self) -> None:
         report = preflight(self.config, self.app.dataset_store)
@@ -2258,7 +2035,7 @@ class TrainingPage(BasePage):
             "เริ่มเทรนและวัดผล",
             f"รอบนี้เพิ่มคำ: {self.target_var.get()}\n"
             f"ระบบจะเทรนใหม่รวม {len(self.config.visible_gestures)} คำเดิมและใหม่ "
-            "แล้วทดสอบแบบสลับสมาชิก 2 คน\n"
+            "แล้วกัน session ของผู้ใช้ทั้งสองคนไว้วัดผล\n"
             "ถ้าผลผ่าน ระบบจะสำรองโมเดลเดิม ติดตั้งผล และอัปเดตทุกหน้าให้อัตโนมัติ\n"
             "ต้องการดำเนินการต่อหรือไม่?",
         ):
@@ -2288,17 +2065,19 @@ class TrainingPage(BasePage):
         )
         report = quick_trial_readiness(config, self.app.dataset_store)
         if not report.ready:
+            errors = [item.message for item in report.items if item.status == "error"]
             messagebox.showwarning(
                 "ข้อมูลโหมดด่วนยังไม่พร้อม",
-                f"ต้องมีคลิป accepted ของ “{target}” อย่างน้อย 4 คลิปก่อน",
+                "\n".join(errors[:4]) if errors else "ข้อมูลยังไม่ผ่านเงื่อนไข",
             )
             self.show_step(2)
             return
         if not messagebox.askyesno(
             "เริ่มเทรนทดลองด่วน",
-            f"ระบบจะเพิ่ม “{target}” โดยใช้ข้อมูลฐานของคำเดิมและคลิปคำใหม่นี้\n"
+            f"ระบบจะเพิ่ม “{target}” โดยใช้ข้อมูลฐานคำเดิมเป็นชุดฝึก "
+            "และกันกลุ่มคำใหม่ไว้ประเมิน\n"
             "ถ้าผลผ่าน ระบบจะสำรองโมเดลเดิม ติดตั้ง และแสดงคำใหม่ทันที "
-            "แต่คะแนนยังไม่ถือเป็นผลทดสอบมาตรฐาน\n\n"
+            "แต่คะแนนเป็นเพียงผลเบื้องต้น ไม่ใช้เป็นผลวิจัยมาตรฐาน\n\n"
             "ต้องการเริ่มเทรนหรือไม่?",
         ):
             return
@@ -2442,8 +2221,12 @@ class TrainingPage(BasePage):
         if item is None:
             messagebox.showinfo("เลือกผลการทดลอง", "กรุณาเลือกผลการทดลองหนึ่งรายการ")
             return
-        if not item["passed"]:
-            messagebox.showwarning("ยังไม่ผ่านเกณฑ์", "ติดตั้งได้เฉพาะผลที่ผ่านเกณฑ์")
+        action = experiment_primary_action(item, installed_experiment_id())[1]
+        if action == "camera":
+            self.app.open_detector()
+            return
+        if action == "trial":
+            self.activate_trial_selected()
             return
         quick_mode = item.get("mode") == "quick_trial"
         if not messagebox.askyesno(
@@ -2469,30 +2252,33 @@ class TrainingPage(BasePage):
         except Exception as exc:
             self.app.show_error("ติดตั้งโมเดลไม่สำเร็จ", exc)
 
-    def test_selected_with_camera(self) -> None:
-        """ติดตั้งผลที่เลือกอย่างปลอดภัย แล้วเปิดหน้ากล้องสำหรับทดสอบจริง."""
+    def activate_trial_selected(self) -> None:
         item = self._selected_experiment()
-        if item is None or not item["passed"]:
-            messagebox.showinfo("ยังทดสอบไม่ได้", "เลือกผลที่ผ่านเกณฑ์ก่อน")
+        if item is None or item["passed"]:
             return
-        quick_mode = item.get("mode") == "quick_trial"
         if not messagebox.askyesno(
-            "ติดตั้งและเปิดกล้องทดสอบ",
-            f"ระบบจะสำรองโมเดลเดิม ติดตั้งผล {item['id']} แล้วเปิดกล้อง\n"
-            + (
-                "ผลนี้เป็นโมเดลทดลองด่วน ใช้ดูการทำงานจริงก่อนเก็บข้อมูลมาตรฐานให้ครบ\n"
-                if quick_mode else ""
-            )
-            + "ต้องการดำเนินการต่อหรือไม่?",
+            "ติดตั้งโมเดลทดลองที่ยังไม่ผ่านเกณฑ์",
+            f"ผล {item['id']} ยังไม่ผ่านเกณฑ์ และอาจจำบางคำผิด\n"
+            "จะสำรองโมเดลเดิมและแสดงคำเตือนว่าเป็นโมเดลทดลอง\n"
+            "ไม่เปลี่ยนคะแนนให้ผ่าน ไม่ใช้แทนการสื่อสารสำคัญโดยไม่มีคนตรวจ\n\n"
+            "ยืนยันติดตั้งเพื่อทดลองหรือไม่?", parent=self,
         ):
             return
         try:
-            activate_experiment(item["path"], allow_quick_trial=quick_mode)
+            backup = activate_experiment(
+                item["path"], allow_quick_trial=item.get("mode") == "quick_trial",
+                allow_unvalidated_trial=True,
+            )
             self.app.reload_model_state()
-            self.app.launcher.launch("detect")
-            self.app.set_status("ติดตั้งโมเดลแล้วและเปิดกล้องทดสอบจริง")
-        except Exception as exc:
-            self.app.show_error("เปิดการทดสอบจริงไม่สำเร็จ", exc)
+            self.app.set_status("ติดตั้งแบบทดลองแล้ว — ผลยังไม่ผ่านเกณฑ์")
+            messagebox.showinfo(
+                "ติดตั้งแบบทดลองแล้ว",
+                f"ผลประเมินยังไม่ผ่านและไม่ถูกแก้ไข\nสำรองของเดิม: {backup}\n"
+                "เปิดกล้องได้จากหน้า ภาพรวม → เริ่มตรวจจับภาษามือ", parent=self,
+            )
+        except Exception as error:
+            self.app.show_error("ติดตั้งแบบทดลองไม่สำเร็จ", error)
+
 
 
 # ── หน้า 6: การตั้งค่ากล้อง การยืนยันผล และเสียง ───────────
@@ -2511,10 +2297,13 @@ class SettingsPage(BasePage):
         form = section_card(scroll.body)
         form.pack(fill="x")
         form.columnconfigure(1, weight=1)
+        self.gpu_status_var = tk.StringVar(value="กำลังตรวจโหมดประมวลผล...")
         self.vars: dict[str, tk.Variable] = {
             "camera_index": tk.StringVar(),
             "min_confidence": tk.StringVar(),
+            "min_probability_margin": tk.StringVar(),
             "confirm_frames": tk.StringVar(),
+            "neutral_release_frames": tk.StringVar(),
             "release_seconds": tk.StringVar(),
             "speak_hold_seconds": tk.StringVar(),
             "auto_add_words": tk.BooleanVar(),
@@ -2524,11 +2313,22 @@ class SettingsPage(BasePage):
             "prevent_duplicate_words": tk.BooleanVar(),
             "save_spoken_sentences": tk.BooleanVar(),
             "history_limit": tk.StringVar(),
+            "prefer_gpu": tk.BooleanVar(),
         }
         rows = (
             ("camera_index", "หมายเลขกล้อง", "0 คือกล้องหลัก"),
-            ("min_confidence", "ความมั่นใจขั้นต่ำ", "0.00–1.00; ปัจจุบันแนะนำ 0.65"),
+            ("min_confidence", "ความมั่นใจขั้นต่ำ", "0.00–1.00; ค่าเริ่มต้น 0.72"),
+            (
+                "min_probability_margin",
+                "ระยะห่างอันดับ 1–2",
+                "ต่ำกว่านี้จะแสดงว่าไม่แน่ใจ",
+            ),
             ("confirm_frames", "จำนวนเฟรมยืนยัน", "ต้องเห็นท่าติดต่อกันกี่เฟรม"),
+            (
+                "neutral_release_frames",
+                "จำนวนเฟรม Neutral เพื่อปลดล็อก",
+                "ก่อนรับคำเดิมอีกครั้ง",
+            ),
             ("release_seconds", "เวลาปล่อยท่า", "วินาทีก่อนยอมรับท่าเดิมอีกครั้ง"),
             ("speak_hold_seconds", "เวลาค้างท่าก่อนเพิ่มคำ/อ่าน", "วินาที"),
             ("tts_volume", "ระดับเสียง", "0.00–1.00"),
@@ -2549,25 +2349,55 @@ class SettingsPage(BasePage):
                 ("auto_tts", "อ่านคำที่ตรวจจับได้อัตโนมัติเมื่อค้างท่า"),
                 ("prevent_duplicate_words", "ป้องกันคำเดิมซ้ำติดกัน"),
                 ("save_spoken_sentences", "บันทึกประโยคที่สั่งพูดลงประวัติ"),
+                (
+                    "prefer_gpu",
+                    "หน้าใช้งานจริง: ลองใช้ GPU ก่อน และกลับไป CPU อัตโนมัติเมื่อไม่พร้อม",
+                ),
             )
         ):
             ttk.Checkbutton(form, text=label, variable=self.vars[key]).grid(
                 row=bool_start + offset, column=0, columnspan=3, sticky="w", pady=6
             )
+        gpu_status = tk.Label(
+            form,
+            textvariable=self.gpu_status_var,
+            background=COLORS["info_soft"],
+            foreground=COLORS["accent"],
+            anchor="w",
+            justify="left",
+            padx=12,
+            pady=9,
+        )
+        gpu_status.grid(
+            row=bool_start + 5,
+            column=0,
+            columnspan=3,
+            sticky="ew",
+            pady=(12, 0),
+        )
         actions = ttk.Frame(form, style="Card.TFrame")
-        actions.grid(row=bool_start + 4, column=0, columnspan=3, sticky="ew", pady=(18, 0))
+        actions.grid(row=bool_start + 6, column=0, columnspan=3, sticky="ew", pady=(18, 0))
         ttk.Button(actions, text="คืนค่าเริ่มต้น", command=self.reset).pack(side="left")
         ttk.Button(actions, text="บันทึกการตั้งค่า", style="Accent.TButton", command=self.save).pack(side="right")
 
     def refresh(self) -> None:
         for key, value in asdict(self.app.settings).items():
             self.vars[key].set(value)
+        config = load_training_config()
+        requested = str(config.training.parameters.get("device", "auto"))
+        camera_mode = "ลองใช้ GPU" if self.app.settings.prefer_gpu else "ใช้ CPU"
+        self.gpu_status_var.set(
+            f"การเทรน TCN: device={requested} (auto จะเลือก CUDA เมื่อพร้อม) · "
+            f"หน้าใช้งานจริง: {camera_mode} · หาก CUDA ใช้ไม่ได้ระบบจะ fallback เป็น CPU"
+        )
 
     def _settings_from_form(self) -> AppSettings:
         return AppSettings(
             camera_index=int(self.vars["camera_index"].get()),
             min_confidence=float(self.vars["min_confidence"].get()),
+            min_probability_margin=float(self.vars["min_probability_margin"].get()),
             confirm_frames=int(self.vars["confirm_frames"].get()),
+            neutral_release_frames=int(self.vars["neutral_release_frames"].get()),
             release_seconds=float(self.vars["release_seconds"].get()),
             speak_hold_seconds=float(self.vars["speak_hold_seconds"].get()),
             auto_add_words=bool(self.vars["auto_add_words"].get()),
@@ -2577,6 +2407,7 @@ class SettingsPage(BasePage):
             prevent_duplicate_words=bool(self.vars["prevent_duplicate_words"].get()),
             save_spoken_sentences=bool(self.vars["save_spoken_sentences"].get()),
             history_limit=int(self.vars["history_limit"].get()),
+            prefer_gpu=bool(self.vars["prefer_gpu"].get()),
         )
 
     def save(self) -> None:
@@ -2584,6 +2415,7 @@ class SettingsPage(BasePage):
             settings = self._settings_from_form()
             self.app.settings_store.save(settings)
             self.app.apply_settings(settings)
+            self.refresh()
             self.app.set_status("บันทึกการตั้งค่าแล้ว")
             messagebox.showinfo("บันทึกแล้ว", "การตั้งค่าใหม่จะใช้กับหน้าตรวจจับครั้งถัดไป")
         except Exception as exc:
@@ -2614,8 +2446,9 @@ class HelpPage(BasePage):
                 "ลำดับพัฒนาที่ใช้อยู่",
                 "1. ทำ GUI และระบบแอปให้ครบ\n"
                 "2. จัดการคำศัพท์และเตรียม Dataset V2\n"
-                "3. เลือกคำใหม่ครั้งละ 1 คำ แล้วเก็บคำเดิม + คำใหม่ + neutral จากสมาชิก 2 คน\n"
-                "4. ตรวจคุณภาพ เทรนรวมข้อมูลสะสม และวัดผลแบบสลับคน",
+                "3. เลือกคำใหม่ครั้งละ 1 คำ แล้วเก็บคำจริง + Neutral + Unknown "
+                "จากสมาชิก 2 คน แบ่ง 4 รอบ\n"
+                "4. ตรวจคุณภาพ เทรน TCN ด้วย GPU เมื่อพร้อม และวัดผลแบบสลับคน",
             ),
             (
                 "สิ่งที่ทำได้ตอนนี้โดยไม่ใช้กล้อง",
@@ -2638,7 +2471,9 @@ class HelpPage(BasePage):
                 "เมื่อพร้อมใช้กล้อง",
                 "กด ‘เริ่มตรวจจับภาษามือ’ ที่หน้าภาพรวม แอปจะถามยืนยันก่อนเปิดกล้อง "
                 "ค้างท่าที่ระบบยืนยันจนครบเวลาเพื่อเพิ่มคำลงประโยคอัตโนมัติ แล้วปล่อยมือ "
-                "หรือเปลี่ยนท่าก่อนคำถัดไป ปุ่มบนหน้ากล้องใช้เพิ่ม ลบ อ่าน บันทึก และล้างได้",
+                "กลับสู่ Neutral ก่อนทำคำเดิมซ้ำ ถ้าความมั่นใจต่ำจะแสดง ‘ไม่แน่ใจ’ "
+                "ปุ่มบนหน้ากล้องใช้เพิ่ม ลบ อ่าน บันทึก และล้างได้ และจะลองใช้ GPU "
+                "ตามค่าที่ตั้งไว้โดย fallback เป็น CPU ได้",
             ),
             (
                 "ไฟล์บันทึกข้อผิดพลาด",
@@ -2662,7 +2497,6 @@ class HandVoxApp:
         ("dashboard", "ภาพรวม"),
         ("sentence", "สร้างประโยค"),
         ("gestures", "คำศัพท์"),
-        ("dataset", "Dataset V2"),
         ("training", "เตรียมเทรน"),
         ("settings", "ตั้งค่า"),
         ("help", "วิธีใช้"),
@@ -2835,6 +2669,12 @@ class HandVoxApp:
         right.pack(side="left", fill="both", expand=True)
         self.page_host = ttk.Frame(right, style="Page.TFrame")
         self.page_host.pack(fill="both", expand=True)
+        self.deployment_warning = tk.Label(
+            right, text="โมเดลทดลอง: ผลยังไม่ผ่านเกณฑ์ — อาจจำบางคำผิด โปรดตรวจคำก่อนใช้",
+            background=COLORS["warning_soft"], foreground=COLORS["warning"],
+            font=("Leelawadee UI", 10, "bold"), anchor="w", padx=18, pady=8,
+        )
+        self._refresh_deployment_warning()
         status = tk.Label(
             right,
             textvariable=self.status_var,
@@ -2851,7 +2691,6 @@ class HandVoxApp:
             "dashboard": DashboardPage,
             "sentence": SentencePage,
             "gestures": GesturesPage,
-            "dataset": DatasetPage,
             "training": TrainingPage,
             "settings": SettingsPage,
             "help": HelpPage,
@@ -2882,10 +2721,26 @@ class HandVoxApp:
         """โหลดโมเดล/คำศัพท์ล่าสุดและวาดหน้าที่ใช้รายการคำใหม่ทันที."""
         self.catalog = GestureCatalog()
         self.active_gestures = self.catalog.load_active()
-        for key in ("dashboard", "sentence", "gestures"):
+        if "deployment_warning" in self.__dict__:
+            self._refresh_deployment_warning()
+        for key in ("dashboard", "sentence", "gestures", "training"):
             page = self.pages.get(key)
             if page is not None:
-                page.refresh()
+                try:
+                    page.refresh()
+                except Exception:
+                    logging.exception("รีเฟรชหน้า %s หลังโหลดโมเดลใหม่ไม่สำเร็จ", key)
+
+    def _refresh_deployment_warning(self) -> None:
+        try:
+            manifest = json.loads((ROOT / "model_manifest.json").read_text(encoding="utf-8"))
+            experimental = manifest.get("deployment", {}).get("status") == "experimental_unvalidated"
+        except (OSError, ValueError, TypeError, AttributeError):
+            experimental = False
+        if experimental:
+            self.deployment_warning.pack(fill="x", before=self.page_host)
+        else:
+            self.deployment_warning.pack_forget()
 
     def apply_settings(self, settings: AppSettings) -> None:
         self.settings = settings

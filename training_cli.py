@@ -4,7 +4,9 @@ import argparse
 from pathlib import Path
 
 from handvox.errors import HandVoxError
-from handvox.paths import EXPERIMENTS_DIR
+from handvox.dataset_v2 import DatasetV2Store
+from handvox.external_evaluation import evaluate_external
+from handvox.paths import EXPERIMENTS_DIR, ROOT
 from handvox.gesture_catalog import GestureCatalog
 from handvox.training_config import (
     build_incremental_training_config,
@@ -75,7 +77,7 @@ def command_train(target=None):
     if not report.ready:
         print("\nยังไม่เริ่มเทรน เพราะมีรายการที่ต้องแก้")
         return 2
-    print("\nกำลังเทรนและประเมินแบบสลับสมาชิก 2 คน...")
+    print("\nกำลังเทรนและประเมินด้วย session ที่กันไว้ของผู้ใช้ทั้งสอง...")
     experiment_dir, payload = train_and_evaluate(config=config)
     aggregate = payload["aggregate"]
     print(f"Accuracy : {aggregate['accuracy']:.4f}")
@@ -141,24 +143,51 @@ def command_targets():
     return 0
 
 
-def command_activate(experiment, confirmed, allow_quick_trial=False):
+def command_activate(experiment, confirmed, allow_quick_trial=False, allow_unvalidated_trial=False):
     """ขอยืนยันก่อนสำรองโมเดลเดิมและติดตั้ง experiment ที่ผ่านเกณฑ์."""
     directory = Path(experiment)
     if not directory.is_absolute():
         directory = EXPERIMENTS_DIR / directory
     if not confirmed:
+        confirmation_word = "INSTALL EXPERIMENTAL" if allow_unvalidated_trial else "ACTIVATE"
         answer = input(
-            "คำสั่งนี้จะสำรองโมเดลเดิมและติดตั้งโมเดลที่ผ่านเกณฑ์ พิมพ์ ACTIVATE: "
+            (
+                "คำเตือน: ติดตั้งแบบทดลองแม้ผลยังไม่ผ่าน คะแนนเดิมจะไม่เปลี่ยน "
+                if allow_unvalidated_trial else "ติดตั้งโมเดลที่ผ่านเกณฑ์ "
+            ) + f"โดยสำรองของเดิมก่อน พิมพ์ {confirmation_word}: "
         ).strip()
-        if answer != "ACTIVATE":
+        if answer != confirmation_word:
             print("ยกเลิก")
             return 1
-    backup = activate_experiment(directory, allow_quick_trial=allow_quick_trial)
+    backup = activate_experiment(
+        directory, allow_quick_trial=allow_quick_trial,
+        allow_unvalidated_trial=allow_unvalidated_trial,
+    )
+    if allow_unvalidated_trial:
+        print("คำเตือน: ขอใช้แบบทดลองเท่านั้น ผลประเมินเดิมยังไม่ถูกเปลี่ยนให้ผ่าน")
     print(f"ติดตั้งโมเดลแล้ว สำรองของเดิมไว้ที่ {backup}")
     return 0
 
 
-def main():
+def command_evaluate_external(experiment, dataset):
+    """วัดโมเดลที่บันทึกไว้กับข้อมูลผู้ใช้ใหม่และแสดงตำแหน่งรายงาน."""
+    directory = Path(experiment)
+    if not directory.is_absolute() and not directory.is_dir():
+        directory = EXPERIMENTS_DIR / directory
+    report_dir, payload = evaluate_external(directory, DatasetV2Store(Path(dataset)))
+    aggregate = payload["aggregate"]
+    print("ผลวัดผู้ใช้ใหม่:", ", ".join(payload["signers"]))
+    print(f"Accuracy : {aggregate['accuracy']:.4f}")
+    print(f"Macro F1: {aggregate['macro_f1']:.4f}")
+    print(f"จำนวนคลิป: {payload['accepted_clips']}")
+    if payload["missing_classes"]:
+        print("คลาสที่ยังไม่มีคลิปทดสอบ:", ", ".join(payload["missing_classes"]))
+    print(f"รายงาน   : {report_dir}")
+    print("ผลวัดผู้ใช้ใหม่บันทึกแยกจากคะแนนและสิทธิ์ติดตั้งของโมเดล")
+    return 0
+
+
+def main(argv=None):
     """แยกคำสั่ง status/train/list/activate และแปลงข้อผิดพลาดเป็น exit code."""
     parser = argparse.ArgumentParser(description="HandVox V2 training workflow")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -180,7 +209,20 @@ def main():
         action="store_true",
         help="ยืนยันการติดตั้งผลโหมดทดลองด่วน",
     )
-    args = parser.parse_args()
+    activate.add_argument(
+        "--allow-unvalidated-trial", action="store_true",
+        help="ยืนยันติดตั้งแบบทดลองแม้ไม่ผ่านเกณฑ์ โดยไม่เปลี่ยนผลคะแนน",
+    )
+    external = subparsers.add_parser(
+        "evaluate-external", help="วัดโมเดลเดิมกับคลิปผู้ใช้ใหม่โดยไม่เทรนเพิ่ม"
+    )
+    external.add_argument("experiment", help="รหัสหรือ path ของผลการทดลอง")
+    external.add_argument(
+        "--dataset",
+        default=ROOT / "dataset_external_v2",
+        help="โฟลเดอร์ข้อมูลผู้ใช้ใหม่ (ค่าเริ่มต้น dataset_external_v2)",
+    )
+    args = parser.parse_args(argv)
     try:
         if args.command == "status":
             return command_status(args.target)
@@ -192,8 +234,10 @@ def main():
             return command_list()
         if args.command == "targets":
             return command_targets()
+        if args.command == "evaluate-external":
+            return command_evaluate_external(args.experiment, args.dataset)
         return command_activate(
-            args.experiment, args.yes, args.allow_quick_trial
+            args.experiment, args.yes, args.allow_quick_trial, args.allow_unvalidated_trial
         )
     except HandVoxError as error:
         print(f"ไม่สำเร็จ: {error}")

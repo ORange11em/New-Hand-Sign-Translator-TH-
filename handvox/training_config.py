@@ -39,6 +39,8 @@ class AcceptanceCriteria:
     minimum_class_recall: float
     minimum_critical_recall: float
     maximum_neutral_false_positive_rate: float
+    minimum_prediction_confidence: float
+    minimum_probability_margin: float
 
 
 @dataclass(frozen=True)
@@ -83,8 +85,13 @@ class TrainingConfig:
             raise ConfigurationError("รายการคำตั้งต้นต้องมีอย่างน้อย 1 ท่า")
         if len(set(self.all_classes)) != len(self.all_classes):
             raise ConfigurationError("ชื่อคลาสใน training_config ห้ามซ้ำกัน")
-        if self.mode == "standard" and "neutral" not in self.internal_classes:
-            raise ConfigurationError("ต้องมีคลาส neutral สำหรับลดการตรวจผิด")
+        if self.mode == "standard":
+            missing_internal = {"neutral", "unknown"}.difference(self.internal_classes)
+            if missing_internal:
+                raise ConfigurationError(
+                    "โหมดมาตรฐานต้องมีคลาสภายใน neutral และ unknown "
+                    f"(ยังขาด: {', '.join(sorted(missing_internal))})"
+                )
         if self.mode == "quick_trial" and self.internal_classes:
             raise ConfigurationError("โหมดทดลองด่วนใช้เฉพาะคำที่แสดงและไม่มีคลาสภายใน")
         if len(self.collection.signers) != 2:
@@ -93,6 +100,8 @@ class TrainingConfig:
             raise ConfigurationError("รหัสผู้ทำท่าห้ามซ้ำกัน")
         if not self.collection.sessions:
             raise ConfigurationError("ต้องกำหนด session อย่างน้อยหนึ่งรายการ")
+        if len(set(self.collection.sessions)) != len(self.collection.sessions):
+            raise ConfigurationError("รหัส session ห้ามซ้ำกัน")
         if self.collection.minimum_accepted_per_signer_per_class < 2:
             raise ConfigurationError("จำนวนคลิปขั้นต่ำต่อคนต่อคลาสต้องไม่น้อยกว่า 2")
         if (
@@ -100,17 +109,49 @@ class TrainingConfig:
             < self.collection.minimum_accepted_per_signer_per_class
         ):
             raise ConfigurationError("จำนวนคลิปเป้าหมายต้องไม่น้อยกว่าจำนวนขั้นต่ำ")
+        if (
+            self.collection.target_clips_per_signer_per_class
+            < len(self.collection.sessions)
+        ):
+            raise ConfigurationError(
+                "จำนวนคลิปเป้าหมายต้องไม่น้อยกว่าจำนวน session "
+                "เพื่อให้แต่ละรอบมีข้อมูลอย่างน้อย 1 คลิป"
+            )
         if self.collection.sequence_length <= 0:
             raise ConfigurationError("sequence_length ต้องมากกว่า 0")
-        if self.training.algorithm != "SVC":
-            raise ConfigurationError("ขณะนี้รองรับ algorithm แบบ SVC เท่านั้น")
-        expected_strategy = (
-            "stratified_holdout"
+        if self.training.algorithm not in {"SVC", "TCN"}:
+            raise ConfigurationError("algorithm ต้องเป็น SVC หรือ TCN")
+        if self.training.algorithm == "TCN":
+            device = str(self.training.parameters.get("device", "auto")).strip().lower()
+            valid_device = device in {"auto", "cpu", "cuda"}
+            if device.startswith("cuda:"):
+                try:
+                    valid_device = int(device.split(":", 1)[1]) >= 0
+                except ValueError:
+                    valid_device = False
+            if not valid_device:
+                raise ConfigurationError(
+                    "training.parameters.device ต้องเป็น auto, cpu, cuda หรือ cuda:N"
+                )
+            augmentation_copies = self.training.parameters.get(
+                "augmentation_copies", 0
+            )
+            if (
+                isinstance(augmentation_copies, bool)
+                or not isinstance(augmentation_copies, int)
+                or augmentation_copies < 0
+            ):
+                raise ConfigurationError(
+                    "training.parameters.augmentation_copies ต้องเป็นจำนวนเต็มตั้งแต่ 0"
+                )
+        allowed_strategies = (
+            {"grouped_signer_session_holdout"}
             if self.mode == "quick_trial"
-            else "leave_one_signer_out"
+            else {"leave_one_signer_out", "known_signers_session_holdout"}
         )
-        if self.training.evaluation_strategy != expected_strategy:
-            raise ConfigurationError(f"โหมด {self.mode} ต้องประเมินแบบ {expected_strategy}")
+        if self.training.evaluation_strategy not in allowed_strategies:
+            choices = ", ".join(sorted(allowed_strategies))
+            raise ConfigurationError(f"โหมด {self.mode} ต้องประเมินแบบ {choices}")
         if not set(self.critical_gestures).issubset(self.visible_gestures):
             raise ConfigurationError("critical_gestures ต้องอยู่ใน visible_gestures")
         for name, value in vars(self.acceptance).items():
@@ -127,6 +168,17 @@ def _nonempty_strings(values, field_name):
     if not result or any(not value for value in result):
         raise ConfigurationError(f"{field_name} ห้ามมีค่าว่าง")
     return result
+
+
+def session_clip_target(config: TrainingConfig, session_id: str) -> int:
+    """คืนเป้าหมายคลิปของหนึ่งรอบ โดยกระจายเศษให้รอบต้น ๆ อย่างสมดุล."""
+    session = str(session_id).strip()
+    sessions = config.collection.sessions
+    if session not in sessions:
+        raise ConfigurationError(f"ไม่พบ session ในแผนเก็บข้อมูล: {session}")
+    target = config.collection.target_clips_per_signer_per_class
+    base, remainder = divmod(target, len(sessions))
+    return base + (1 if sessions.index(session) < remainder else 0)
 
 
 def load_training_config(path=TRAINING_CONFIG_FILE):
@@ -175,6 +227,12 @@ def load_training_config(path=TRAINING_CONFIG_FILE):
                 maximum_neutral_false_positive_rate=float(
                     acceptance["maximum_neutral_false_positive_rate"]
                 ),
+                minimum_prediction_confidence=float(
+                    acceptance.get("minimum_prediction_confidence", 0.72)
+                ),
+                minimum_probability_margin=float(
+                    acceptance.get("minimum_probability_margin", 0.12)
+                ),
             ),
             target_gesture=str(payload.get("target_gesture", "")).strip(),
             mode=str(payload.get("mode", "standard")).strip(),
@@ -206,8 +264,8 @@ def build_incremental_training_config(
 ):
     """สร้างขอบเขตรอบเดียวจากคำเดิมทั้งหมด บวกคำใหม่หนึ่งคำและคลาสภายใน.
 
-    SVC ไม่รองรับการต่อคลาสเข้าโมเดลเดิมโดยตรง จึงต้องฝึกใหม่จากข้อมูล V2
-    ของคำเดิมทุกคำร่วมกับคำเป้าหมาย แต่ผู้ใช้เก็บเพิ่มเฉพาะคำใหม่ในรอบถัด ๆ ไป
+    โมเดลจำแนกหลายคลาสต้องฝึก artifact ใหม่จากข้อมูลสะสมของคำเดิมร่วมกับ
+    คำเป้าหมาย แต่ผู้ใช้เก็บเพิ่มเฉพาะคำใหม่ในรอบถัด ๆ ไป
     """
     config = config or load_training_config()
     target = str(target_gesture).strip()
@@ -251,8 +309,9 @@ def build_quick_trial_config(
 ):
     """สร้างขอบเขตทดลองด่วนจากคำในโมเดลปัจจุบันบวกคำใหม่หนึ่งคำ.
 
-    โหมดนี้นำข้อมูลฐานเดิมกลับมาใช้ จึงไม่บังคับให้ถ่ายคำเดิมหรือ neutral ซ้ำ
-    และใช้การแบ่ง train/test แบบ stratified holdout สำหรับผลทดสอบเบื้องต้นเท่านั้น
+    โหมดนี้นำข้อมูลฐานเดิมมาใช้ฝึกเท่านั้น จึงไม่บังคับให้ถ่ายคำเดิมหรือ
+    neutral ซ้ำ แล้วประเมินคำใหม่ด้วยกลุ่มผู้ทำท่า+รอบถ่ายที่ไม่ทับกัน
+    ผลดังกล่าวเป็นผลเบื้องต้น ไม่ใช่ผลมาตรฐานสำหรับรายงานวิจัย
     """
     standard = build_incremental_training_config(
         target_gesture,
@@ -267,7 +326,7 @@ def build_quick_trial_config(
         critical_gestures=(),
         training=replace(
             standard.training,
-            evaluation_strategy="stratified_holdout",
+            evaluation_strategy="grouped_signer_session_holdout",
         ),
         mode="quick_trial",
     ).validate()

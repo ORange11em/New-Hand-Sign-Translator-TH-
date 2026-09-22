@@ -5,8 +5,11 @@ _tts_tmp.mp3
 settings.json
 conversation_history.json
 handvox.log
+detector_performance_latest.json
 dataset_v2/metadata.jsonl
 dataset_v2/clips/
 dataset_v2/previews/
+dataset_external_v2/
 experiments/*/model.pkl
+experiments/*/model.pt
 experiments/*/labels.pkl

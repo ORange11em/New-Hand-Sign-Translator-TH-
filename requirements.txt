@@ -2,6 +2,8 @@
 # Supported Python versions: 3.10 or 3.11 only.
 # Install with: python -m pip install -r requirements.txt
 # Do not use Python 3.12+ because this MediaPipe version is not supported there.
+# PyTorch is installed separately by setup.bat so NVIDIA machines receive the
+# CUDA build from requirements-gpu.txt and other machines receive the CPU build.
 opencv-python==4.8.1.78
 mediapipe==0.10.9
 scikit-learn==1.3.2

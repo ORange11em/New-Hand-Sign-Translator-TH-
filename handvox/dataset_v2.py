@@ -12,6 +12,7 @@ from handvox.paths import DATASET_V2_DIR
 
 QUALITY_VALUES = ("pending", "accepted", "rejected")
 LIGHTING_VALUES = ("unknown", "bright", "normal", "dim", "backlit")
+CAPTURE_MODE_VALUES = ("standard", "extra", "retake")
 
 
 @dataclass
@@ -34,6 +35,8 @@ class ClipMetadata:
     feature_count: int = 0
     dataset_version: int = 2
     notes: str = ""
+    capture_mode: str = "standard"
+    supersedes_clip_id: str = ""
 
     def validate(self):
         """ตรวจฟิลด์บังคับ ค่า enum เวลา และป้องกัน path ออกจาก Dataset."""
@@ -60,6 +63,12 @@ class ClipMetadata:
             )
         if self.quality not in QUALITY_VALUES:
             raise DataFileError(f"quality ต้องเป็นหนึ่งใน {', '.join(QUALITY_VALUES)}")
+        if self.capture_mode not in CAPTURE_MODE_VALUES:
+            raise DataFileError(
+                f"capture_mode ต้องเป็นหนึ่งใน {', '.join(CAPTURE_MODE_VALUES)}"
+            )
+        if self.supersedes_clip_id and self.supersedes_clip_id == self.clip_id:
+            raise DataFileError("คลิปใหม่ไม่สามารถแทนที่ตัวเองได้")
         for field_name in ("sequence_file", "preview_file"):
             value = getattr(self, field_name)
             if value:
@@ -123,6 +132,21 @@ class DatasetV2Store:
         if not selected:
             return 0
         records = self.records()
+        superseded_ids = {
+            record.supersedes_clip_id
+            for record in records
+            if record.supersedes_clip_id
+        }
+        restoring_superseded = sorted(
+            selected.intersection(superseded_ids)
+            if quality in {"pending", "accepted"}
+            else ()
+        )
+        if restoring_superseded:
+            raise DataFileError(
+                "คลิปที่ถูกถ่ายแทนแล้วต้องคงสถานะ rejected: "
+                + ", ".join(restoring_superseded)
+            )
         updated = 0
         for record in records:
             if record.clip_id in selected:
@@ -131,6 +155,58 @@ class DatasetV2Store:
         if updated:
             self.save_records(records)
         return updated
+
+    def mark_superseded(self, old_clip_id, new_clip_id):
+        """ทำเครื่องหมายคลิปเดิมว่าถูกถ่ายใหม่ โดยยังเก็บไฟล์ไว้ตรวจย้อนหลัง."""
+        if not old_clip_id or not new_clip_id or old_clip_id == new_clip_id:
+            raise DataFileError("รหัสคลิปเดิมและคลิปใหม่สำหรับการถ่ายใหม่ไม่ถูกต้อง")
+        records = self.records()
+        old_record = next(
+            (record for record in records if record.clip_id == old_clip_id), None
+        )
+        new_record = next(
+            (record for record in records if record.clip_id == new_clip_id), None
+        )
+        if old_record is None:
+            raise DataFileError(f"ไม่พบคลิปเดิมที่ต้องการถ่ายใหม่: {old_clip_id}")
+        if new_record is None:
+            raise DataFileError(f"ไม่พบคลิปใหม่ที่ใช้แทน: {new_clip_id}")
+        existing_replacement = next(
+            (
+                record
+                for record in records
+                if record.supersedes_clip_id == old_clip_id
+                and record.clip_id != new_clip_id
+            ),
+            None,
+        )
+        if existing_replacement is not None:
+            raise DataFileError(
+                f"คลิป {old_clip_id} ถูกแทนที่ด้วย {existing_replacement.clip_id} แล้ว"
+            )
+        old_scope = (
+            old_record.gesture_name,
+            old_record.signer_id,
+            old_record.session_id,
+        )
+        new_scope = (
+            new_record.gesture_name,
+            new_record.signer_id,
+            new_record.session_id,
+        )
+        if old_scope != new_scope:
+            raise DataFileError(
+                "คลิปใหม่ต้องเป็นคำ ผู้ทำท่า และ session เดียวกับคลิปเดิม"
+            )
+        old_record.quality = "rejected"
+        marker = f"ถ่ายใหม่และแทนที่ด้วยคลิป {new_clip_id}"
+        old_record.notes = (
+            f"{old_record.notes.rstrip()} | {marker}" if old_record.notes.strip() else marker
+        )
+        new_record.capture_mode = "retake"
+        new_record.supersedes_clip_id = old_clip_id
+        self.save_records(records)
+        return old_record, new_record
 
     def resolve_data_path(self, relative_path):
         """แปลง relative path เป็น path จริงโดยห้ามหลุดออกจาก Dataset."""

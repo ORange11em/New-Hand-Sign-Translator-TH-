@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
@@ -13,6 +14,7 @@ from handvox.ui import (
     HandVoxApp,
     TrainingPage,
     experiment_preserves_active_words,
+    training_plan_progress,
 )
 
 
@@ -165,9 +167,56 @@ class TrainingUiRefreshTests(unittest.TestCase):
         page.app.show_page.assert_called_once_with("gestures")
         page.app.set_status.assert_called_once()
 
+    def test_excess_clips_in_one_session_do_not_mark_collection_complete(self):
+        config = load_training_config()
+        records = [
+            SimpleNamespace(
+                gesture_name=config.all_classes[0],
+                signer_id=config.collection.signers[0],
+                session_id=config.collection.sessions[0],
+                quality="accepted",
+            )
+            for _ in range(config.collection.target_clips_per_signer_per_class * 3)
+        ]
+
+        progress = training_plan_progress(config, records)
+
+        self.assertEqual(progress["capture_groups_complete"], 1)
+        self.assertLess(
+            progress["capture_groups_complete"], progress["capture_groups_total"]
+        )
+        self.assertEqual(progress["accepted_scopes_complete"], 0)
+
+    def test_quick_readiness_shows_real_blocking_reason(self):
+        page = TrainingPage.__new__(TrainingPage)
+        page.target_var = Mock()
+        page.target_var.get.return_value = "นอน"
+        page.app = Mock()
+        page.app.dataset_store.records.return_value = []
+        page.quick_summary_var = Mock()
+        page.quick_train_button = Mock()
+        report = SimpleNamespace(
+            ready=False,
+            items=(
+                SimpleNamespace(
+                    status="error",
+                    message="ต้องมี accepted จากอย่างน้อย 2 กลุ่มผู้ทำท่าและรอบถ่าย",
+                ),
+            ),
+        )
+
+        page._refresh_quick_readiness(report)
+
+        message = page.quick_summary_var.set.call_args.args[0]
+        self.assertIn("อย่างน้อย 2 กลุ่ม", message)
+        page.quick_train_button.state.assert_called_once_with(["disabled"])
+
     def test_reload_model_state_refreshes_every_page_that_uses_active_words(self):
         app = HandVoxApp.__new__(HandVoxApp)
-        pages = {name: Mock() for name in ("dashboard", "sentence", "gestures")}
+        pages = {
+            name: Mock()
+            for name in ("dashboard", "sentence", "gestures", "training")
+        }
         app.pages = pages
         catalog = Mock()
         catalog.load_active.return_value = ["น้ำ"]

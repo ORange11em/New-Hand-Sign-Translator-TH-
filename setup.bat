@@ -53,6 +53,25 @@ if errorlevel 1 goto :error
 if errorlevel 1 goto :error
 
 echo.
+echo Installing the temporal model runtime...
+where nvidia-smi >nul 2>&1
+if errorlevel 1 goto :install_torch_cpu
+
+echo NVIDIA GPU found. Installing the CUDA build of PyTorch...
+".venv\Scripts\python.exe" -m pip install -r requirements-gpu.txt
+if errorlevel 1 goto :error
+goto :torch_ready
+
+:install_torch_cpu
+echo NVIDIA GPU was not found. Installing the CPU build of PyTorch...
+".venv\Scripts\python.exe" -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+if errorlevel 1 goto :error
+
+:torch_ready
+".venv\Scripts\python.exe" -c "import torch; print('PyTorch', torch.__version__, '| CUDA available:', torch.cuda.is_available())"
+if errorlevel 1 goto :error
+
+echo.
 echo ==========================================
 echo   Setup complete
 echo   Open HandVox.bat to start

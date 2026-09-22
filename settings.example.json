@@ -1,7 +1,9 @@
 {
   "camera_index": 0,
-  "min_confidence": 0.65,
-  "confirm_frames": 4,
+  "min_confidence": 0.72,
+  "min_probability_margin": 0.12,
+  "confirm_frames": 6,
+  "neutral_release_frames": 3,
   "release_seconds": 0.35,
   "speak_hold_seconds": 1.0,
   "auto_add_words": true,
@@ -10,5 +12,6 @@
   "font_scale": 1.0,
   "prevent_duplicate_words": true,
   "save_spoken_sentences": true,
-  "history_limit": 100
+  "history_limit": 100,
+  "prefer_gpu": true
 }

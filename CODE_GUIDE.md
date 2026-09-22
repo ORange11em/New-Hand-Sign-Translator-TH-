@@ -31,10 +31,15 @@
 | `add_gesture.py` | เพิ่มท่า เก็บคลิป และเทรนใน workflow รุ่นเดิม |
 | `remove_gesture.py` | สำรองและลบท่าใน workflow รุ่นเดิม |
 | `reset_gestures.py` | สำรองทุกอย่างก่อนเริ่มรายการท่าเปล่า |
-| `collect_dataset_v2.py` | เก็บ sequence, preview และ metadata สำหรับ V2 |
-| `training_cli.py` | คำสั่ง status/train/list/activate ของ V2 |
+| `collect_dataset_v2.py` | เก็บ sequence, preview และ metadata สำหรับ V2; `--external-evaluation` เก็บผู้ใช้ใหม่แยกจากชุดเทรน |
+| `training_cli.py` | คำสั่ง status/train/list/activate และ evaluate-external ของ V2 |
 
 ## แพ็กเกจ `handvox/`
+
+- `detector_view.py` — วาดหน้ากล้อง 1080×680 แยกภาพกับผลแปล ใช้ cache ข้อความและแปลงสีเพียงสองครั้งต่อเฟรม ไม่แก้ภาพก่อนส่งโมเดล
+- `detector_performance.py` — เก็บสถิติเวลาแบบจำกัดหน่วยความจำ แยก FPS ทั้งลูปกับอัตราการทำนาย และส่งออกรายงานโดยไม่เก็บภาพ
+- `detector_sequence.py` — ล้าง sequence เก่าเมื่อ landmark หายเกินเวลาปล่อยท่าเดิม โดยไม่เปลี่ยนจำนวนเฟรมหรือ resample
+- `tools/profile_detector_replay.py` — replay คลิปเดิมเพื่อวัดก่อน–หลังพร้อม hash ของ input โมเดลและ probabilities ปิดกล้องจริง/เสียง/ประวัติในโหมดนี้
 
 | ไฟล์ | หน้าที่ |
 | --- | --- |
@@ -58,13 +63,12 @@
 | คลาส | หน้าที่ |
 | --- | --- |
 | `ScrollableFrame` | ทำพื้นที่เนื้อหาเลื่อนแนวตั้งได้ |
+| `Disclosure` | ซ่อนรายละเอียดระบบและตัวเลือกขั้นสูงจนกว่าจะกาง |
 | `BasePage` | หัวข้อและรูปแบบร่วมของทุกหน้า |
 | `DashboardPage` | สถานะโปรเจกต์และปุ่มเริ่มกล้อง |
 | `SentencePage` | สร้างประโยคโดยไม่ใช้กล้องและดูประวัติ |
 | `GesturesPage` | ดู active vocabulary และแก้ planned vocabulary |
-| `DatasetPage` | สรุป Dataset V2 และ metadata |
-| `TrainingPageLegacy` | หน้าเทรนรุ่นเก่าที่ไม่ถูกใช้งานแล้ว |
-| `TrainingPage` | Wizard เตรียมเทรนห้าขั้นที่ใช้งานจริง |
+| `TrainingPage` | แถบเตรียมเทรนห้าขั้น เปิดโฟลเดอร์ข้อมูล และผลทดลองพร้อมปุ่มหลักตามสถานะโมเดล |
 | `SettingsPage` | ตั้งค่ากล้อง confidence เวลา เสียง และประโยค |
 | `HelpPage` | วิธีใช้และขอบเขตระบบ |
 | `HandVoxApp` | ประกอบเมนู หน้า ธีม และบริการร่วมทั้งหมด |
@@ -73,11 +77,29 @@
 
 1. `preflight` ตรวจแหล่งอ้างอิง จำนวนคลิป คุณภาพ session และไฟล์ sequence
 2. `_load_accepted_arrays` โหลดเฉพาะคลิปที่ผ่านการตรวจ
-3. `train_and_evaluate` สลับสมาชิกหนึ่งคนเป็น test และอีกคนเป็น train จำนวนสอง fold
+3. `train_and_evaluate` เทรนจากผู้ใช้ที่ตั้งไว้ทั้งคู่ แล้วผลัดกันกันทุก session ของแต่ละคนเป็น test โดยไม่ให้ session เดียวกันรั่วข้ามชุด
 4. `_metric_payload` คำนวณ Accuracy, Precision, Recall, F1 และ Confusion Matrix
 5. `_acceptance_result` ตรวจว่า experiment ผ่านเกณฑ์ขั้นต่ำหรือไม่
 6. `_write_*` บันทึก JSON, CSV, Markdown และกราฟลงโฟลเดอร์ experiment ใหม่
-7. `activate_experiment` ตรวจและสำรองโมเดลเดิมก่อนติดตั้งผลที่ผ่านเกณฑ์
+7. `activate_experiment` ตรวจและสำรองโมเดลเดิมก่อนติดตั้งผลที่ผ่านเกณฑ์ หรือรับ `allow_unvalidated_trial=True` หลังผู้ใช้ยืนยันติดตั้งแบบทดลอง โดย manifest ที่ติดตั้งมี `deployment.status = experimental_unvalidated` และคงผล `passed=False` ไว้ ไม่แก้ผลต้นฉบับ
+
+กลยุทธ์มาตรฐาน `known_signers_session_holdout` ใช้ `_known_signers_session_holdout_folds`
+หมุน session ที่ตั้งไว้ทั้งหมดเป็น test โดยใช้ session ถัดไปเป็น validation สำหรับ TCN
+แต่ละส่วนมีข้อมูลของผู้ใช้ที่ตั้งไว้ทั้งคู่ และกลุ่ม `signer_id + session_id` ไม่ข้ามชุด
+ภายใน fold เดียวกัน ทุกคลิปมีคำทำนายทดสอบเพียงครั้งเดียว ส่วนโมเดลส่งมอบฝึกจาก
+accepted ของทั้งสองคนทั้งหมด กลยุทธ์เก่า `leave_one_signer_out` ยังรองรับ และควรอ่าน
+คะแนนตามกลยุทธ์ที่บันทึกใน experiment เพราะขอบเขตการวัดต่างกัน
+
+`_predictions_with_recognition_policy` เปลี่ยนคำทำนายของคลาสที่แสดงเป็น `unknown`
+เมื่อ confidence ต่ำกว่า 0.72 หรือระยะห่างจากอันดับสองต่ำกว่า 0.12 ตาม config
+นโยบายที่บันทึกใน manifest เป็นค่าขั้นต่ำที่ runtime ใช้ คะแนนนี้เป็นการวัดระดับคลิป
+และไม่ได้จำลองการยืนยัน 6 เฟรมหรือเวลาค้างท่าของระบบสร้างประโยค
+
+คำสั่ง `evaluate-external` โหลดโมเดลที่บันทึกใน experiment เพื่อวัดคลิป accepted
+จาก `dataset_external_v2/` โดยไม่ฝึกใหม่ ตรวจรหัสคนและ sequence ไม่ให้ซ้ำชุดฝึก
+และเขียนรายงานลง `external_evaluations/` ภายใน experiment ผลผู้ใช้ใหม่ไม่แก้คะแนน
+หรือสถานะผ่านเกณฑ์ของการทดลองเดิม หน้าอ่านผลมีปุ่ม **วัดผู้ใช้ใหม่** สำหรับเก็บข้อมูล
+ตรวจคุณภาพ และเรียกการวัดชุดนี้ ดูคำสั่งใช้งานใน `TRAINING_GUIDE.md`
 
 โหมดเพิ่มทีละคำใช้ `build_incremental_training_config` สร้าง config ชั่วคราวจาก
 คำในโมเดลปัจจุบันทั้งหมด + คำเป้าหมายหนึ่งคำ + `neutral` และเพิ่มคำต่อเนื่องได้
@@ -118,6 +140,7 @@
 - `settings.json` คือค่าที่ผู้ใช้บันทึกจาก GUI
 - `conversation_history.json` คือประวัติประโยค
 - `dataset_v2/metadata.jsonl` คือทะเบียนคลิป V2 ทีละบรรทัด
+- `dataset_external_v2/metadata.jsonl` คือทะเบียนคลิปผู้ใช้ใหม่สำหรับวัดผลภายหลัง
 - `experiments/` เก็บผลทุกครั้งแยกกันและไม่เขียนทับโมเดลหลักอัตโนมัติ
 
 ## หลักในการอ่านและแก้โค้ด

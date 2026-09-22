@@ -13,8 +13,10 @@ class AppSettings:
     """ค่าปรับพฤติกรรมกล้อง การยืนยันผล เสียง ประโยค และประวัติ."""
 
     camera_index: int = 0
-    min_confidence: float = 0.65
-    confirm_frames: int = 4
+    min_confidence: float = 0.72
+    min_probability_margin: float = 0.12
+    confirm_frames: int = 6
+    neutral_release_frames: int = 3
     release_seconds: float = 0.35
     speak_hold_seconds: float = 1.0
     auto_add_words: bool = True
@@ -24,6 +26,7 @@ class AppSettings:
     prevent_duplicate_words: bool = True
     save_spoken_sentences: bool = True
     history_limit: int = 100
+    prefer_gpu: bool = True
 
     def validate(self):
         """ตรวจชนิดและช่วงค่าทั้งหมดก่อนให้ส่วนอื่นนำไปใช้."""
@@ -31,8 +34,15 @@ class AppSettings:
             raise ConfigurationError("หมายเลขกล้องต้องอยู่ระหว่าง 0 ถึง 20")
         if not 0.05 <= float(self.min_confidence) <= 1.0:
             raise ConfigurationError("Confidence ต้องอยู่ระหว่าง 0.05 ถึง 1.00")
+        if not 0.0 <= float(self.min_probability_margin) <= 1.0:
+            raise ConfigurationError("ระยะห่างความมั่นใจต้องอยู่ระหว่าง 0.00 ถึง 1.00")
         if not isinstance(self.confirm_frames, int) or not 1 <= self.confirm_frames <= 30:
             raise ConfigurationError("จำนวนเฟรมยืนยันต้องอยู่ระหว่าง 1 ถึง 30")
+        if (
+            not isinstance(self.neutral_release_frames, int)
+            or not 1 <= self.neutral_release_frames <= 30
+        ):
+            raise ConfigurationError("จำนวนเฟรม neutral ต้องอยู่ระหว่าง 1 ถึง 30")
         if not 0.0 <= float(self.release_seconds) <= 5.0:
             raise ConfigurationError("เวลารีเซ็ตต้องอยู่ระหว่าง 0 ถึง 5 วินาที")
         if not 0.1 <= float(self.speak_hold_seconds) <= 10.0:
@@ -48,6 +58,7 @@ class AppSettings:
             "auto_tts",
             "prevent_duplicate_words",
             "save_spoken_sentences",
+            "prefer_gpu",
         ):
             if not isinstance(getattr(self, name), bool):
                 raise ConfigurationError(f"{name} ต้องเป็น true หรือ false")
