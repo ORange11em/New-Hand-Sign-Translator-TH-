@@ -204,11 +204,12 @@ def _external_metrics(actual, predicted, class_names):
     return metrics
 
 
-def evaluate_external(experiment_dir, store, output_root=None):
+def evaluate_external(experiment_dir, store, output_root=None, *, include_pending=False):
     """วัดเฉพาะคลิป accepted ของผู้ทำท่าใหม่โดยไม่เทรนหรือติดตั้งโมเดล.
 
     แต่ละรอบสร้างโฟลเดอร์รายงานใหม่เสมอ ผลไม่มีค่า ``passed`` และไม่แก้
-    metrics.json หรือสิทธิ์ติดตั้งของ experiment เดิม.
+    metrics.json หรือสิทธิ์ติดตั้งของ experiment เดิม. include_pending ใช้วัด
+    เบื้องต้นเท่านั้น โดยรักษาสถานะคุณภาพและแยกประเภทจากรายงานที่ผ่านตรวจ.
     """
     experiment_dir = Path(experiment_dir).resolve()
     if store.root.resolve().is_relative_to(DATASET_V2_DIR.resolve()):
@@ -223,12 +224,16 @@ def evaluate_external(experiment_dir, store, output_root=None):
     except (KeyError, TypeError, ValueError) as error:
         raise DataFileError(f"manifest สำหรับวัดผลไม่ถูกต้อง: {error}") from error
     training_signers, training_hashes = _training_provenance(experiment_dir)
+    eligible_quality = {"accepted", "pending"} if include_pending else {"accepted"}
     records = sorted(
-        (record for record in store.records() if record.quality == "accepted"),
+        (record for record in store.records() if record.quality in eligible_quality),
         key=lambda record: record.clip_id,
     )
     if not records:
-        raise DataFileError("ยังไม่มีคลิป accepted ของผู้ทำท่าใหม่สำหรับวัดผล")
+        qualities = "accepted หรือ pending" if include_pending else "accepted"
+        raise DataFileError(f"ยังไม่มีคลิป {qualities} ของผู้ทำท่าใหม่สำหรับวัดผล")
+    accepted_count = sum(record.quality == "accepted" for record in records)
+    pending_count = sum(record.quality == "pending" for record in records)
     if len({record.clip_id for record in records}) != len(records):
         raise DataFileError("พบ clip_id ซ้ำในชุดวัดผล")
     training_signer_keys = {signer.casefold() for signer in training_signers}
@@ -295,6 +300,7 @@ def evaluate_external(experiment_dir, store, output_root=None):
         raise HandVoxError(f"ประเมินผู้ทำท่าใหม่ไม่สำเร็จ: {error}") from error
     actual = np.asarray([record.gesture_name for record in records], dtype=str)
     signers = np.asarray([record.signer_id.strip() for record in records], dtype=str)
+    sessions = np.asarray([record.session_id for record in records], dtype=str)
     created_at = datetime.now().astimezone()
     evaluation_id = created_at.strftime("%Y%m%d_%H%M%S_%f") + "_" + uuid4().hex[:8]
     aggregate = _external_metrics(actual, predictions, class_names.tolist())
@@ -313,7 +319,9 @@ def evaluate_external(experiment_dir, store, output_root=None):
         "evaluation_id": evaluation_id,
         "experiment_id": manifest.get("experiment_id", experiment_dir.name),
         "created_at": created_at.isoformat(timespec="seconds"),
-        "evaluation_scope": "external_new_signers",
+        "evaluation_scope": "external_new_signers_provisional" if pending_count else "external_new_signers",
+        "evaluation_status": "provisional_pending_review" if pending_count else "quality_reviewed",
+        "include_pending": include_pending,
         "affects_installation": False,
         "prediction_policy": "saved_recognition_policy" if policy is not None else "raw_model_predictions",
         "recognition_policy": manifest.get("recognition_policy"),
@@ -328,7 +336,9 @@ def evaluate_external(experiment_dir, store, output_root=None):
         ).hexdigest(),
         "training_signers": list(training_signers),
         "signers": sorted(set(signers.tolist())),
-        "accepted_clips": len(records),
+        "evaluated_clips": len(records),
+        "accepted_clips": accepted_count,
+        "pending_clips": pending_count,
         "classes": class_names.tolist(),
         "missing_classes": missing_classes,
         "coverage_complete": not missing_classes,
@@ -336,6 +346,13 @@ def evaluate_external(experiment_dir, store, output_root=None):
         "per_signer": {
             signer: _external_metrics(actual[signers == signer], predictions[signers == signer], class_names.tolist())
             for signer in sorted(set(signers.tolist()))
+        },
+        "per_session": {
+            session: {
+                "evaluated_clips": int(np.sum(sessions == session)),
+                **_external_metrics(actual[sessions == session], predictions[sessions == session], class_names.tolist()),
+            }
+            for session in sorted(set(sessions.tolist()))
         },
         "clips": rows,
     }
@@ -352,12 +369,14 @@ def evaluate_external(experiment_dir, store, output_root=None):
     _write_csv(report_dir / "per_class_metrics.csv", list(aggregate["per_class"][0]), aggregate["per_class"])
     _write_confusion_csv(report_dir / "confusion_matrix.csv", class_names.tolist(), aggregate["confusion_matrix"])
     lines = [
-        "# ผลวัดโมเดลกับผู้ทำท่าใหม่",
+        "# ผลวัดโมเดลกับผู้ทำท่าใหม่" + (" (เบื้องต้น — ยังมีคลิปรอตรวจคุณภาพ)" if pending_count else ""),
         "",
         f"- โมเดล: {payload['experiment_id']}",
         f"- ผู้ทำท่าที่ใช้เทรน: {', '.join(training_signers)}",
         f"- ผู้ทำท่าที่ใช้วัดผล: {', '.join(payload['signers'])}",
-        f"- คลิป accepted: {len(records)}",
+        f"- คลิปที่ประเมิน: {len(records)}",
+        f"- คลิป accepted: {accepted_count}",
+        f"- คลิป pending: {pending_count}",
         f"- Accuracy: {aggregate['accuracy']:.2%}",
         f"- Macro F1: {aggregate['macro_f1']:.2%}",
         "- Macro F1 เฉลี่ยทุกคลาสของโมเดล โดยคลาสที่ไม่มีข้อมูลหรือทายไม่ได้มีค่า 0",
@@ -365,6 +384,8 @@ def evaluate_external(experiment_dir, store, output_root=None):
         "- รายงานนี้ใช้โมเดลที่บันทึกไว้โดยไม่มีการเทรนเพิ่ม และไม่เปลี่ยนผลอนุมัติติดตั้ง",
         "- เป็นการวัดระดับคลิป ยังไม่ใช่การทดสอบบทสนทนาต่อเนื่องจากกล้อง",
     ]
+    if pending_count:
+        lines.append("- ผลนี้ยังไม่ใช่ผลที่ผ่านการตรวจคุณภาพครบทุกคลิป และไม่มีการเปลี่ยน pending เป็น accepted")
     if missing_classes:
         lines.append("- ข้อมูลยังไม่ครบทุกคลาส ขาด: " + ", ".join(missing_classes))
     (report_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

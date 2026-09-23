@@ -13,3 +13,6 @@ dataset_external_v2/
 experiments/*/model.pkl
 experiments/*/model.pt
 experiments/*/labels.pkl
+/tmp/
+/.doc_tools/
+/ผลลัพธ์เอกสาร/ชุดรูปประกอบเอกสาร_01_02_03.zip

@@ -1,0 +1,18 @@
+{
+  "person_gesture_sets": 57,
+  "sets_per_person": {
+    "person_01": 19,
+    "person_02": 19,
+    "person_03": 19
+  },
+  "main_images": 57,
+  "phase_images": 171,
+  "sequence_images": 57,
+  "category_copies": 114,
+  "overview_images": 3,
+  "program_screenshots": 12,
+  "total_png_files": 414,
+  "original_frame_pixel_comparison": "PASS: all 57 main PNGs exactly match decoded source frames",
+  "png_integrity": "PASS",
+  "metadata_quality": "accepted for all 57 selected clips"
+}

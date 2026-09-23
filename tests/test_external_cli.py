@@ -244,6 +244,18 @@ class ExternalEvaluationCommandTests(unittest.TestCase):
         self.activation.assert_not_called()
         self.trainer.assert_not_called()
 
+    def test_pending_evaluation_is_explicit_and_reported_as_provisional(self):
+        self.evaluator.return_value[1].update(evaluated_clips=6, pending_clips=2)
+        result = training_cli.main(["evaluate-external", "saved_run", "--include-pending"])
+        self.assertEqual(result, 0)
+        self.evaluator.assert_called_once_with(
+            EXPERIMENTS_DIR / "saved_run", self.store_factory.return_value, include_pending=True
+        )
+        self.assertIn("จำนวนคลิป: 6", self.output.getvalue())
+        self.assertIn("ผลเบื้องต้น", self.output.getvalue())
+        self.activation.assert_not_called()
+        self.trainer.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

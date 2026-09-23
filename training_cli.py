@@ -169,17 +169,20 @@ def command_activate(experiment, confirmed, allow_quick_trial=False, allow_unval
     return 0
 
 
-def command_evaluate_external(experiment, dataset):
+def command_evaluate_external(experiment, dataset, include_pending=False):
     """วัดโมเดลที่บันทึกไว้กับข้อมูลผู้ใช้ใหม่และแสดงตำแหน่งรายงาน."""
     directory = Path(experiment)
     if not directory.is_absolute() and not directory.is_dir():
         directory = EXPERIMENTS_DIR / directory
-    report_dir, payload = evaluate_external(directory, DatasetV2Store(Path(dataset)))
+    options = {"include_pending": True} if include_pending else {}
+    report_dir, payload = evaluate_external(directory, DatasetV2Store(Path(dataset)), **options)
     aggregate = payload["aggregate"]
     print("ผลวัดผู้ใช้ใหม่:", ", ".join(payload["signers"]))
     print(f"Accuracy : {aggregate['accuracy']:.4f}")
     print(f"Macro F1: {aggregate['macro_f1']:.4f}")
-    print(f"จำนวนคลิป: {payload['accepted_clips']}")
+    print(f"จำนวนคลิป: {payload.get('evaluated_clips', payload['accepted_clips'])}")
+    if payload.get("pending_clips", 0):
+        print(f"ผลเบื้องต้น: มี {payload['pending_clips']} คลิปที่ยังรอตรวจคุณภาพ (pending)")
     if payload["missing_classes"]:
         print("คลาสที่ยังไม่มีคลิปทดสอบ:", ", ".join(payload["missing_classes"]))
     print(f"รายงาน   : {report_dir}")
@@ -218,6 +221,10 @@ def main(argv=None):
     )
     external.add_argument("experiment", help="รหัสหรือ path ของผลการทดลอง")
     external.add_argument(
+        "--include-pending", action="store_true",
+        help="วัดเบื้องต้นรวมคลิปรอตรวจคุณภาพ โดยไม่เปลี่ยนสถานะคลิป",
+    )
+    external.add_argument(
         "--dataset",
         default=ROOT / "dataset_external_v2",
         help="โฟลเดอร์ข้อมูลผู้ใช้ใหม่ (ค่าเริ่มต้น dataset_external_v2)",
@@ -235,7 +242,7 @@ def main(argv=None):
         if args.command == "targets":
             return command_targets()
         if args.command == "evaluate-external":
-            return command_evaluate_external(args.experiment, args.dataset)
+            return command_evaluate_external(args.experiment, args.dataset, args.include_pending)
         return command_activate(
             args.experiment, args.yes, args.allow_quick_trial, args.allow_unvalidated_trial
         )

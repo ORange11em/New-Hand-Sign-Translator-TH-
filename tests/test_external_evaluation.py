@@ -193,6 +193,37 @@ class ExternalEvaluationTests(unittest.TestCase):
         with self.assertRaisesRegex(DataFileError, "ใช้วัดผลไม่ได้"):
             evaluate_external(self.experiment, self.store)
 
+    def test_provisional_includes_pending_without_changing_review_status(self):
+        self.append(label="wave", value=2)
+        self.append(label="neutral", value=0, quality="pending")
+        self.append(label="unknown", value=1, quality="rejected")
+        metadata_before = self.store.manifest.read_bytes()
+        report_dir, payload = evaluate_external(self.experiment, self.store, include_pending=True)
+        self.assertEqual(payload["evaluated_clips"], 2)
+        self.assertEqual(payload["accepted_clips"], 1)
+        self.assertEqual(payload["pending_clips"], 1)
+        self.assertEqual(payload["evaluation_scope"], "external_new_signers_provisional")
+        self.assertEqual(payload["evaluation_status"], "provisional_pending_review")
+        self.assertEqual({row["quality"] for row in payload["clips"]}, {"accepted", "pending"})
+        self.assertEqual(payload["per_session"]["new_session"]["evaluated_clips"], 2)
+        self.assertEqual(self.store.manifest.read_bytes(), metadata_before)
+        self.assertIn("เบื้องต้น", (report_dir / "report.md").read_text(encoding="utf-8"))
+        _, reviewed = evaluate_external(self.experiment, self.store)
+        self.assertEqual(reviewed["evaluated_clips"], 1)
+        self.assertEqual(reviewed["evaluation_scope"], "external_new_signers")
+
+    def test_provisional_still_rejects_pending_clip_from_training_person(self):
+        self.append(signer="person_01", quality="pending")
+        with self.assertRaisesRegex(DataFileError, "ใช้เทรนแล้ว"):
+            evaluate_external(self.experiment, self.store, include_pending=True)
+
+    def test_provisional_can_measure_all_pending_without_claiming_accepted(self):
+        self.append(quality="pending")
+        _, payload = evaluate_external(self.experiment, self.store, include_pending=True)
+        self.assertEqual(payload["accepted_clips"], 0)
+        self.assertEqual(payload["evaluated_clips"], 1)
+        self.assertEqual(payload["pending_clips"], 1)
+
     def test_rejects_labels_that_model_does_not_know(self):
         self.append(label="new_gesture")
         with self.assertRaisesRegex(DataFileError, "ไม่มีในโมเดล"):
