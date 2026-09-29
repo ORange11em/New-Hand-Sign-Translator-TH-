@@ -1,4 +1,6 @@
 ﻿experiment_id,created_at,target_gesture,mode,accuracy,macro_f1,passed,report_path
+20260928_080553_874822,2026-09-28T08:04:27+07:00,อะไร,standard,0.760806916426513,0.7953423864514845,True,C:\Users\Ult_Orange\Desktop\handvox\experiments\20260928_080553_874822\report.md
+quick_20260928_063139_251134,2026-09-28T06:31:03+07:00,อะไร,quick_trial,0.8472222222222222,0.8342623388810628,False,C:\Users\Ult_Orange\Desktop\handvox\experiments\quick_20260928_063139_251134\report.md
 20260922_072450_423285,2026-09-22T07:23:16+07:00,ไม่ต้อง,standard,0.7628398791540786,0.8006183862338951,False,C:\Users\Ult_Orange\Desktop\handvox\experiments\20260922_072450_423285\report.md
 20260915_061512_537476,2026-09-15T06:13:44+07:00,ไม่ต้อง,standard,0.7614678899082569,0.7937201063537295,False,C:\Users\Ult_Orange\Desktop\handvox\experiments\20260915_061512_537476\report.md
 20260915_043046_123137,2026-09-15T04:29:22+07:00,ไม่ต้อง,standard,0.8226299694189603,0.8203984737891424,False,C:\Users\Ult_Orange\Desktop\handvox\experiments\20260915_043046_123137\report.md

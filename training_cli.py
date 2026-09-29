@@ -181,6 +181,11 @@ def command_evaluate_external(experiment, dataset, include_pending=False):
     print(f"Accuracy : {aggregate['accuracy']:.4f}")
     print(f"Macro F1: {aggregate['macro_f1']:.4f}")
     print(f"จำนวนคลิป: {payload.get('evaluated_clips', payload['accepted_clips'])}")
+    if payload.get("excluded_clip_count", 0):
+        print(
+            f"ข้าม {payload['excluded_clip_count']} คลิปที่ไม่มีในโมเดล (ไม่รวมในคะแนน): "
+            + ", ".join(payload["excluded_classes"])
+        )
     if payload.get("pending_clips", 0):
         print(f"ผลเบื้องต้น: มี {payload['pending_clips']} คลิปที่ยังรอตรวจคุณภาพ (pending)")
     if payload["missing_classes"]:

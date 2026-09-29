@@ -1,0 +1,30 @@
+[
+  {
+    "output": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\ผลลัพธ์เอกสาร\\ฉบับเพิ่มท่าอะไร_18คำ\\รูปประกอบ\\confusion_matrix_18words_existing_signers.png",
+    "source": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\experiments\\quick_20260928_063139_251134\\metrics.json",
+    "source_sha256": "d50a6020cdfaca3db517d62fe1d06d64103807c7cf57cd307452e155ac30ff5b",
+    "matrix_matches_csv": true,
+    "classes": 18,
+    "clips": 144,
+    "correct": 122,
+    "resolution": [
+      4500,
+      3900
+    ],
+    "dpi": 300
+  },
+  {
+    "output": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\ผลลัพธ์เอกสาร\\ฉบับเพิ่มท่าอะไร_18คำ\\รูปประกอบ\\confusion_matrix_18words_new_signer.png",
+    "source": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\experiments\\quick_20260928_063139_251134\\external_evaluations\\20260928_075546_882114_dc18826b\\metrics.json",
+    "source_sha256": "9657be781e2374904a5be47b7f5d8634821074e1f5eb6912f7f596f6894c4583",
+    "matrix_matches_csv": true,
+    "classes": 18,
+    "clips": 287,
+    "correct": 254,
+    "resolution": [
+      4500,
+      3900
+    ],
+    "dpi": 300
+  }
+]

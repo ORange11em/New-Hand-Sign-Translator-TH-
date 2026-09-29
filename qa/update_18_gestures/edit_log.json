@@ -1,0 +1,22 @@
+{
+  "source_experiment": "quick_20260928_063139_251134",
+  "external_evaluation": "20260928_075546_882114_dc18826b",
+  "files": {
+    "บทที่ 4.docx": {
+      "sha256": "84b1b34483355b57bec6022e488ff30a4dcc45ec80bd18dd60bf2e872bedc5c9",
+      "backup": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\qa\\update_18_gestures\\originals\\บทที่ 4.docx"
+    },
+    "บทที่ 5.docx": {
+      "sha256": "9cc2ae5d5c02c18ff304c8124288fd4ca0b43bcc64268d5480c751e6958f99c6",
+      "backup": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\qa\\update_18_gestures\\originals\\บทที่ 5.docx"
+    },
+    "เอกสารอ้างอิง_บทที่ 4.docx": {
+      "sha256": "56371391384be76644e919d39909cda647a53dab42f6c44ad0cfc11611690cff",
+      "backup": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\qa\\update_18_gestures\\originals\\เอกสารอ้างอิง_บทที่ 4.docx"
+    },
+    "เอกสารอ้างอิง_บทที่ 5.docx": {
+      "sha256": "73b7bc4fd5b57858d98e20bd566d383a083ccfcea49a9915a343700c37228959",
+      "backup": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\qa\\update_18_gestures\\originals\\เอกสารอ้างอิง_บทที่ 5.docx"
+    }
+  }
+}

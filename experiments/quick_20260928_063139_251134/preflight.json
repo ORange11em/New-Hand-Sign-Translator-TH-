@@ -1,0 +1,53 @@
+{
+  "ready": true,
+  "generated_at": "2026-09-28T06:31:03+07:00",
+  "accepted_clips": 622,
+  "expected_target_clips": 622,
+  "items": [
+    {
+      "status": "ok",
+      "code": "quick_ready",
+      "message": "พร้อมเทรนทดลองด่วน — ผลที่ได้เป็นผลเบื้องต้นและเปิดกล้องทดสอบจริงได้"
+    },
+    {
+      "status": "warning",
+      "code": "reference_unverified",
+      "message": "คำว่า อะไร ยังไม่ได้เปลี่ยนสถานะเป็น verified"
+    },
+    {
+      "status": "ok",
+      "code": "base_dataset_ready",
+      "message": "ใช้ข้อมูลฐานคำเดิมได้ 590 คลิป — ไม่ต้องถ่ายคำเดิมซ้ำ"
+    },
+    {
+      "status": "ok",
+      "code": "sequence_valid",
+      "message": "ไฟล์ sequence ผ่านการตรวจ 32 คลิป"
+    },
+    {
+      "status": "ok",
+      "code": "quick_target_ready",
+      "message": "คำว่า อะไร: ใช้ accepted 32 คลิปสำหรับทดลองด่วน"
+    }
+  ],
+  "inventory": [
+    {
+      "gesture_name": "อะไร",
+      "signer_id": "person_01",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    },
+    {
+      "gesture_name": "อะไร",
+      "signer_id": "person_02",
+      "accepted": 16,
+      "pending": 0,
+      "rejected": 0,
+      "total": 16,
+      "sessions": 4
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "gestures": [
+    {
+      "id": "what",
+      "name": "อะไร",
+      "category": "คำถาม",
+      "priority": 5,
+      "reference_url": "https://www.th-sl.com",
+      "status": "trained",
+      "notes": "คำใหม่ — ตรวจรูปแบบและลิงก์อ้างอิงก่อนเก็บข้อมูล"
+    }
+  ]
+}

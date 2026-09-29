@@ -1,0 +1,2 @@
+﻿experiment_id,created_at,duration_seconds,model_backend,training_device,evaluation_scope,research_grade,accepted_clips,base_clips,new_target_clips,accuracy,macro_f1,passed,dataset_fingerprint_sha256
+quick_20260928_063139_251134,2026-09-28T06:31:03+07:00,36.307,temporal_tcn,cuda,all_classes_grouped_signer_session_holdout,False,622,590,32,0.8472222222222222,0.8342623388810628,False,eeb97adb2b62f5249454b10dfe4d20ce2ab525bd0fee0a15bcda45576cc53055

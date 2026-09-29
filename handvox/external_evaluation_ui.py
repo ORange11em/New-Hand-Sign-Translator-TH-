@@ -21,6 +21,7 @@ from handvox.external_evaluation import (
     evaluate_external,
     get_experiment_classes,
     get_training_signers,
+    select_evaluation_records,
 )
 from handvox.paths import ROOT
 from handvox.training_config import load_training_config
@@ -29,10 +30,17 @@ from handvox.training_config import load_training_config
 def external_result_summary(payload):
     aggregate = payload["aggregate"]
     missing = payload.get("missing_classes", [])
-    coverage = f" · ยังขาด {len(missing)} คลาส" if missing else " · ครบทุกคลาส"
+    coverage = f" · ยังขาด {len(missing)} คลาสของโมเดล" if missing else " · ครบทุกคลาสของโมเดล"
+    excluded = ""
+    if payload.get("excluded_clip_count", 0):
+        excluded = (
+            f" · ข้าม {payload['excluded_clip_count']} คลิปที่ไม่มีในโมเดล: "
+            + ", ".join(payload["excluded_classes"])
+            + " (ไม่รวมในคะแนน)"
+        )
     return (
         f"ผลผู้ใช้ใหม่: Accuracy {aggregate['accuracy']:.2%} · "
-        f"Macro F1 {aggregate['macro_f1']:.2%}{coverage}"
+        f"Macro F1 {aggregate['macro_f1']:.2%}{coverage}{excluded}"
     )
 
 
@@ -143,6 +151,8 @@ class ExternalEvaluationDialog(tk.Toplevel):
         self.report_button.state(["disabled"])
         self.summary_var = tk.StringVar(value="ยังไม่มีผลผู้ใช้ใหม่ — ถ่ายคลิปและตรวจคุณภาพก่อน")
         ttk.Label(body, textvariable=self.summary_var, wraplength=950).pack(anchor="w", pady=(0, 8))
+        self.scope_var = tk.StringVar()
+        ttk.Label(body, textvariable=self.scope_var, wraplength=950).pack(anchor="w", pady=(0, 8))
         table_frame = ttk.Frame(body)
         self.tree = ttk.Treeview(
             table_frame, columns=("signer", "session", "class", "quality"), show="headings"
@@ -194,17 +204,26 @@ class ExternalEvaluationDialog(tk.Toplevel):
             self.tree.delete(*self.tree.get_children())
             labels = {"accepted": "ผ่านตรวจ", "pending": "รอตรวจ", "rejected": "ไม่ใช้"}
             for record in self.records.values():
+                quality = labels[record.quality]
+                if record.gesture_name not in self.classes:
+                    quality += " · ท่านี้ไม่มีในโมเดล"
                 self.tree.insert("", "end", iid=record.clip_id, values=(
-                    record.signer_id, record.session_id, record.gesture_name, labels[record.quality]
+                    record.signer_id, record.session_id, record.gesture_name, quality
                 ))
             self.update_progress()
-            if not self.collection_busy and (self.future is None or self.future.done()):
-                self.evaluate_button.state(
-                    ["!disabled"] if any(record.quality == "accepted" for record in self.records.values())
-                    else ["disabled"]
-                )
+            self.update_evaluation_scope()
         except Exception as error:
             messagebox.showerror("อ่านคลิปไม่สำเร็จ", str(error), parent=self)
+
+    def update_evaluation_scope(self):
+        selected, excluded = select_evaluation_records(self.records.values(), self.classes)
+        message = f"ใช้คลิปที่ผ่านตรวจและตรงกับโมเดล {len(selected)} คลิป"
+        if excluded:
+            names = ", ".join(sorted({record.gesture_name for record in excluded}))
+            message += f" · ข้าม {len(excluded)} คลิป ({names}) เพราะไม่มีท่าเหล่านี้ในโมเดล จึงไม่รวมในคะแนน"
+        self.scope_var.set(message)
+        busy = self.collection_busy or (self.future is not None and not self.future.done())
+        self.evaluate_button.state(["!disabled"] if selected and not busy else ["disabled"])
 
     def update_progress(self):
         signer = self.signer_var.get().strip()
@@ -312,10 +331,13 @@ class ExternalEvaluationDialog(tk.Toplevel):
             widget.configure(state="disabled" if busy else normal_state)
         if not busy:
             self.update_progress()
+            self.update_evaluation_scope()
 
     def evaluate(self):
         if not messagebox.askyesno(
-            "วัดผู้ใช้ใหม่โดยไม่เทรน", "ใช้เฉพาะคลิปที่ยอมรับแล้วกับโมเดลเดิมที่เลือก\nคะแนนนี้ไม่เปลี่ยนสิทธิ์ติดตั้ง ต้องการวัดผลหรือไม่?", parent=self
+            "วัดผู้ใช้ใหม่โดยไม่เทรน",
+            self.scope_var.get() + "\nคะแนนนี้ไม่เปลี่ยนสิทธิ์ติดตั้ง ต้องการวัดผลหรือไม่?",
+            parent=self,
         ):
             return
         self.set_busy(True)

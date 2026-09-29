@@ -256,6 +256,15 @@ class ExternalEvaluationCommandTests(unittest.TestCase):
         self.activation.assert_not_called()
         self.trainer.assert_not_called()
 
+    def test_shared_dataset_exclusions_are_visible_in_command_output(self):
+        self.evaluator.return_value[1].update(
+            excluded_clip_count=32, excluded_classes=["neutral", "unknown"],
+        )
+        self.assertEqual(training_cli.main(["evaluate-external", "saved_run"]), 0)
+        self.assertIn("ข้าม 32 คลิป", self.output.getvalue())
+        self.assertIn("neutral, unknown", self.output.getvalue())
+        self.assertIn("ไม่รวมในคะแนน", self.output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

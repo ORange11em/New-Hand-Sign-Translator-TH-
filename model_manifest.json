@@ -1,10 +1,17 @@
 {
   "schema_version": 1,
-  "experiment_id": "20260915_061512_537476",
-  "created_at": "2026-09-15T06:15:13+07:00",
+  "experiment_id": "20260928_080553_874822",
+  "created_at": "2026-09-28T08:05:55+07:00",
   "model_backend": "temporal_tcn",
   "model_artifact": "model.pt",
   "model_file": "model.pt",
+  "mode": "standard",
+  "training_signers": [
+    "person_01",
+    "person_02"
+  ],
+  "evaluation_strategy": "known_signers_session_holdout",
+  "evaluation_scope": "known_signers_session_holdout",
   "sequence_length": 30,
   "feature_schema_version": "handvox.temporal_landmarks.v2",
   "feature_count": 510,
@@ -186,20 +193,31 @@
         220,
         255
       ]
+    },
+    {
+      "name": "อะไร",
+      "description": "คำใหม่ — ตรวจรูปแบบและลิงก์อ้างอิงก่อนเก็บข้อมูล",
+      "color": [
+        0,
+        220,
+        100
+      ]
     }
   ],
   "internal_classes": [
     "neutral",
     "unknown"
   ],
+  "evaluation": {
+    "strategy": "known_signers_session_holdout",
+    "scope": "known_signers_session_holdout",
+    "accuracy": 0.760806916426513,
+    "macro_f1": 0.7953423864514845,
+    "passed": true
+  },
   "recognition_policy": {
     "minimum_confidence": 0.72,
     "minimum_probability_margin": 0.12
-  },
-  "evaluation": {
-    "accuracy": 0.7614678899082569,
-    "macro_f1": 0.7937201063537295,
-    "passed": false
   },
   "model_metadata": {
     "artifact_format": "handvox-lightweight-tcn",
@@ -217,6 +235,7 @@
       "หมอ",
       "หยุด",
       "ห้องน้ำ",
+      "อะไร",
       "เข้าใจ",
       "เจ็บ",
       "ใช่",
@@ -232,25 +251,19 @@
     "device_fallback_reason": "",
     "device_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
     "schema_version": "handvox.temporal_landmarks.v2",
-    "trained_at_utc": "2026-09-14T23:15:12+00:00",
-    "training_samples": 1308,
+    "trained_at_utc": "2026-09-28T01:05:53+00:00",
+    "training_samples": 1388,
     "validation_samples": 0,
-    "epochs_completed": 12,
-    "best_epoch": 12,
-    "best_validation_loss": 0.012494491880320993,
+    "epochs_completed": 14,
+    "best_epoch": 13,
+    "best_validation_loss": 0.009648025438447163,
     "stopped_early": false
   },
   "deployment": {
-    "status": "experimental_unvalidated",
-    "acceptance_passed": false,
-    "experimental_override_confirmed": true,
-    "activated_at": "2026-09-15T11:28:22+07:00",
-    "source_experiment": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\experiments\\20260915_061512_537476"
-  },
-  "training_signers": [
-    "person_01",
-    "person_02"
-  ],
-  "evaluation_strategy": "known_signers_session_holdout",
-  "evaluation_scope": "known_signers_session_holdout"
+    "status": "validated",
+    "acceptance_passed": true,
+    "experimental_override_confirmed": false,
+    "activated_at": "2026-09-28T08:05:58+07:00",
+    "source_experiment": "C:\\Users\\Ult_Orange\\Desktop\\handvox\\experiments\\20260928_080553_874822"
+  }
 }

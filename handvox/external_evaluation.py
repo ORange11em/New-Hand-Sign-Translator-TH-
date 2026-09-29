@@ -204,12 +204,24 @@ def _external_metrics(actual, predicted, class_names):
     return metrics
 
 
+def select_evaluation_records(records, class_names, *, include_pending=False):
+    """แยกคลิปที่ใช้กับโมเดลนี้ได้จากคลิปนอกขอบเขต โดยไม่แก้ข้อมูลต้นฉบับ."""
+    eligible_quality = {"accepted", "pending"} if include_pending else {"accepted"}
+    classes = set(class_names)
+    selected, excluded = [], []
+    for record in sorted(records, key=lambda item: item.clip_id):
+        if record.quality in eligible_quality:
+            (selected if record.gesture_name in classes else excluded).append(record)
+    return selected, excluded
+
+
 def evaluate_external(experiment_dir, store, output_root=None, *, include_pending=False):
     """วัดเฉพาะคลิป accepted ของผู้ทำท่าใหม่โดยไม่เทรนหรือติดตั้งโมเดล.
 
     แต่ละรอบสร้างโฟลเดอร์รายงานใหม่เสมอ ผลไม่มีค่า ``passed`` และไม่แก้
     metrics.json หรือสิทธิ์ติดตั้งของ experiment เดิม. include_pending ใช้วัด
     เบื้องต้นเท่านั้น โดยรักษาสถานะคุณภาพและแยกประเภทจากรายงานที่ผ่านตรวจ.
+    คลาสที่โมเดลไม่รองรับจะถูกข้ามและระบุในรายงาน โดยไม่รวมในคะแนน.
     """
     experiment_dir = Path(experiment_dir).resolve()
     if store.root.resolve().is_relative_to(DATASET_V2_DIR.resolve()):
@@ -224,13 +236,17 @@ def evaluate_external(experiment_dir, store, output_root=None, *, include_pendin
     except (KeyError, TypeError, ValueError) as error:
         raise DataFileError(f"manifest สำหรับวัดผลไม่ถูกต้อง: {error}") from error
     training_signers, training_hashes = _training_provenance(experiment_dir)
-    eligible_quality = {"accepted", "pending"} if include_pending else {"accepted"}
-    records = sorted(
-        (record for record in store.records() if record.quality in eligible_quality),
-        key=lambda record: record.clip_id,
+    records, excluded_records = select_evaluation_records(
+        store.records(), expected_names, include_pending=include_pending,
     )
+    excluded_classes = sorted({record.gesture_name for record in excluded_records})
     if not records:
         qualities = "accepted หรือ pending" if include_pending else "accepted"
+        if excluded_records:
+            raise DataFileError(
+                f"ยังไม่มีคลิป {qualities} ที่ตรงกับโมเดลนี้ — "
+                "คลาสในชุดวัดผลไม่มีในโมเดล: " + ", ".join(excluded_classes)
+            )
         raise DataFileError(f"ยังไม่มีคลิป {qualities} ของผู้ทำท่าใหม่สำหรับวัดผล")
     accepted_count = sum(record.quality == "accepted" for record in records)
     pending_count = sum(record.quality == "pending" for record in records)
@@ -243,9 +259,6 @@ def evaluate_external(experiment_dir, store, output_root=None, *, include_pendin
     })
     if overlapping:
         raise DataFileError("ชุดวัดผู้ใช้ใหม่มีผู้ที่ใช้เทรนแล้ว: " + ", ".join(overlapping))
-    unknown_labels = sorted({record.gesture_name for record in records}.difference(expected_names))
-    if unknown_labels:
-        raise DataFileError("คลาสในชุดวัดผลไม่มีในโมเดล: " + ", ".join(unknown_labels))
     sequences = []
     sequence_hashes = []
     for record in records:
@@ -339,6 +352,13 @@ def evaluate_external(experiment_dir, store, output_root=None, *, include_pendin
         "evaluated_clips": len(records),
         "accepted_clips": accepted_count,
         "pending_clips": pending_count,
+        "class_scope": "model_classes_only",
+        "excluded_clip_count": len(excluded_records),
+        "excluded_classes": excluded_classes,
+        "excluded_clips": [
+            {**asdict(record), "reason": "class_not_in_model"}
+            for record in excluded_records
+        ],
         "classes": class_names.tolist(),
         "missing_classes": missing_classes,
         "coverage_complete": not missing_classes,
@@ -368,6 +388,11 @@ def evaluate_external(experiment_dir, store, output_root=None, *, include_pendin
     _write_csv(report_dir / "predictions.csv", list(rows[0]), rows)
     _write_csv(report_dir / "per_class_metrics.csv", list(aggregate["per_class"][0]), aggregate["per_class"])
     _write_confusion_csv(report_dir / "confusion_matrix.csv", class_names.tolist(), aggregate["confusion_matrix"])
+    if excluded_records:
+        _write_csv(
+            report_dir / "excluded_clips.csv",
+            list(payload["excluded_clips"][0]), payload["excluded_clips"],
+        )
     lines = [
         "# ผลวัดโมเดลกับผู้ทำท่าใหม่" + (" (เบื้องต้น — ยังมีคลิปรอตรวจคุณภาพ)" if pending_count else ""),
         "",
@@ -377,6 +402,7 @@ def evaluate_external(experiment_dir, store, output_root=None, *, include_pendin
         f"- คลิปที่ประเมิน: {len(records)}",
         f"- คลิป accepted: {accepted_count}",
         f"- คลิป pending: {pending_count}",
+        "- ขอบเขตคะแนน: เฉพาะท่าที่โมเดลนี้รองรับ",
         f"- Accuracy: {aggregate['accuracy']:.2%}",
         f"- Macro F1: {aggregate['macro_f1']:.2%}",
         "- Macro F1 เฉลี่ยทุกคลาสของโมเดล โดยคลาสที่ไม่มีข้อมูลหรือทายไม่ได้มีค่า 0",
@@ -388,5 +414,11 @@ def evaluate_external(experiment_dir, store, output_root=None, *, include_pendin
         lines.append("- ผลนี้ยังไม่ใช่ผลที่ผ่านการตรวจคุณภาพครบทุกคลิป และไม่มีการเปลี่ยน pending เป็น accepted")
     if missing_classes:
         lines.append("- ข้อมูลยังไม่ครบทุกคลาส ขาด: " + ", ".join(missing_classes))
+    if excluded_records:
+        lines.extend([
+            f"- ข้าม {len(excluded_records)} คลิปที่ไม่มีคลาสในโมเดล: " + ", ".join(excluded_classes),
+            "- คลิปที่ข้ามไม่รวมในคะแนน และยังเก็บไว้ในชุดข้อมูลเดิม (ดู excluded_clips.csv)",
+            "- คะแนนนี้ไม่บอกประสิทธิภาพของโมเดลต่อท่าที่ข้าม รวมถึงการปฏิเสธท่านอกคำศัพท์",
+        ])
     (report_dir / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report_dir, payload

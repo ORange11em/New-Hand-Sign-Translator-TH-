@@ -1,0 +1,14 @@
+{
+  "changed_body_paragraphs": 45,
+  "all_text_and_tables_unchanged": true,
+  "before": {
+    "max_gap_pt": 26.24,
+    "gaps_over_12pt": 43
+  },
+  "after": {
+    "max_gap_pt": 8.13,
+    "gaps_over_12pt": 0
+  },
+  "page_count": 8,
+  "all_pages_visually_reviewed": true
+}

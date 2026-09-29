@@ -228,6 +228,69 @@ class ExternalEvaluationTests(unittest.TestCase):
         self.append(label="new_gesture")
         with self.assertRaisesRegex(DataFileError, "ไม่มีในโมเดล"):
             evaluate_external(self.experiment, self.store)
+        self.assertFalse((self.experiment / "external_evaluations").exists())
+
+    def test_shared_dataset_excludes_other_model_classes_and_preserves_data(self):
+        self.append()
+        outside = self.append(label="new_gesture", value=3)
+        self.append(label="unreviewed", quality="pending", value=4)
+        self.append(label="rejected_gesture", quality="rejected", value=5)
+        before = {path: path.read_bytes() for path in self.root.rglob("*") if path.is_file()}
+        report_dir, payload = evaluate_external(self.experiment, self.store)
+        self.assertEqual(payload["evaluated_clips"], 1)
+        self.assertEqual(payload["accepted_clips"], 1)
+        self.assertEqual(payload["excluded_clip_count"], 1)
+        self.assertEqual(payload["excluded_classes"], ["new_gesture"])
+        self.assertEqual(payload["excluded_clips"][0]["clip_id"], outside.clip_id)
+        self.assertEqual(payload["excluded_clips"][0]["reason"], "class_not_in_model")
+        self.assertEqual(payload["class_scope"], "model_classes_only")
+        self.assertEqual(payload["missing_classes"], ["neutral", "unknown"])
+        self.assertAlmostEqual(payload["aggregate"]["macro_f1"], 1 / 3)
+        self.assertEqual(payload["aggregate"]["accuracy"], 1.0)
+        self.assertIn(outside.clip_id, (report_dir / "excluded_clips.csv").read_text(encoding="utf-8-sig"))
+        report = (report_dir / "report.md").read_text(encoding="utf-8")
+        self.assertIn("ข้าม 1 คลิป", report)
+        self.assertIn("new_gesture", report)
+        for path, original in before.items():
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_quick_model_without_internal_classes_can_use_shared_dataset(self):
+        self.manifest["internal_classes"] = []
+        self.write_manifest()
+        model = SavedSVC()
+        model.classes_ = np.asarray([0])
+        with (self.experiment / "model.pkl").open("wb") as target:
+            pickle.dump(model, target)
+        with (self.experiment / "labels.pkl").open("wb") as target:
+            pickle.dump(LabelEncoder().fit(["wave"]), target)
+        self.append(value=0)
+        self.append(label="neutral", value=1)
+        self.append(label="unknown", value=2)
+        _, payload = evaluate_external(self.experiment, self.store)
+        self.assertEqual(payload["classes"], ["wave"])
+        self.assertEqual(payload["excluded_classes"], ["neutral", "unknown"])
+        self.assertEqual(payload["excluded_clip_count"], 2)
+        self.assertEqual(payload["evaluated_clips"], 1)
+        self.assertEqual(payload["aggregate"]["accuracy"], 1.0)
+        self.assertTrue(payload["coverage_complete"])
+
+    def test_excluded_pending_clips_do_not_make_reviewed_results_provisional(self):
+        self.append()
+        self.append(label="other_model_class", quality="pending", value=3)
+        _, payload = evaluate_external(self.experiment, self.store, include_pending=True)
+        self.assertEqual(payload["excluded_clip_count"], 1)
+        self.assertEqual(payload["pending_clips"], 0)
+        self.assertEqual(payload["evaluation_scope"], "external_new_signers")
+
+    def test_excluding_other_classes_does_not_bypass_training_data_checks(self):
+        self.append(label="other_model_class", value=3)
+        record = self.append(signer="person_01")
+        with self.assertRaisesRegex(DataFileError, "ใช้เทรนแล้ว"):
+            evaluate_external(self.experiment, self.store)
+        self.store.save_records([item for item in self.store.records() if item.clip_id != record.clip_id])
+        self.append(sequence=self.training_clips[0])
+        with self.assertRaisesRegex(DataFileError, "ซ้ำกับข้อมูลเทรน"):
+            evaluate_external(self.experiment, self.store)
 
     def test_tcn_uses_saved_feature_pipeline_and_only_cpu_inference(self):
         pipeline_config = FeaturePipelineConfig(target_length=4, max_missing_gap=0)
